@@ -1,0 +1,8 @@
+<Files ~ "\.db$">
+  Order allow,deny
+  Deny from all
+</Files>
+<Files ~ "\.sqlite$">
+  Order allow,deny
+  Deny from all
+</Files>

@@ -1,0 +1,56 @@
+/* testo etichette */
+.label-codice {
+    color: black;
+    font-size: 11px;
+    font-weight: bold;
+    background: transparent;
+    border: none;
+    text-shadow: 1px 1px 1px white;
+}
+
+/* punti catasto (graffa rossa) */
+.catasto-point {
+    color: red;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.leaflet-tooltip.etichetta-particelle {
+    color: cyan;
+    font-size: 11px;
+    font-weight: bold;
+    text-shadow: 1px 1px 2px black;
+    border: none;
+    background: transparent;
+    box-shadow: none;
+}
+
+/* .label-testo {
+    color: blue;
+    font-size: 12px;
+    font-weight: bold;
+    background: transparent;
+    border: none;
+    text-shadow: 1px 1px 1px white;
+} */
+
+.text-label {
+  color: blue;
+  font-weight: bold;
+  font-family: Arial, sans-serif;
+  text-shadow: 1px 1px 2px white; /* leggibilità su mappa */
+  border: none;
+  background: transparent;
+  
+}
+
+.label-testo {
+  display: inline-block;
+  white-space: nowrap;   /* evita l'andata a capo */  
+  color: blue;
+  font-weight: bold;
+  font-family: Arial, sans-serif;
+  border: none;
+  background: transparent;
+  transform-origin: center center; /* ruota attorno al centro */
+}

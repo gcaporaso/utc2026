@@ -1,0 +1,71 @@
+<script type="text/javascript">
+function apply_filter() {
+$('.dynagrid-1').yiiGridView('applyFilter');
+}
+</script>
+<?php
+//use yii\grid\GridView;
+//use kartik\dynagrid\DynaGrid;
+//use kartik\select2\Select2;
+//use kartik\tabs\TabsX;
+////use kartik\grid;
+////use kartik\grid\GridView;
+//use yii\helpers\Arrayhelper;
+//use yii\data\ActiveDataProvider;
+//use yii\helpers\Html;
+//use yii\helpers\Url;
+//use yii\widgets\LinkPager;
+//use mdm\admin\components\Configs; 
+//use frontend\models\LavoriSearch;
+
+/* @var $this yii\web\View */
+
+//if (Yii::$app->user->isGuest) {};
+
+$this->title = '';
+//$dataProvider = new ActiveDataProvider([
+//    'query' => Lavori::find(),
+//    'pagination' => [
+//        'pageSize' => 20,
+//    ],
+//]);
+//echo GridView::widget([
+//    'dataProvider' => $dataProvider,
+//]);
+
+?>
+<div class="site-index">
+
+    <!--<div class="jumbotron">
+        <h1>Ufficio Tecnico Comunale</h1>
+
+        <p class="lead">Applicazioni Disponibili</p>
+
+        <p><a class="btn btn-lg btn-success" href="http://www.yiiframework.com">Get started with Yii</a></p>
+    </div>-->
+
+      
+    
+    
+<!--<h1>ARCHIVIO PRATICHE EDILIZIE</h1>-->
+    <!--<p>
+        
+ <div class="row">
+  <?php //include('_leftmenuedilizia.php'); ?>      
+    </p>-->
+
+<!--  <div class="col-sm-10 right_col">-->
+
+<?php
+
+include('_edilizia.php');         
+?>
+
+
+
+    
+<!--//LinkPager::widget(['pagination' => $pagination]) -->
+
+    </div>
+</div>
+

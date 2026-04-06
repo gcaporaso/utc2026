@@ -1,0 +1,40 @@
+/* Contenitore della toolbar */
+.right_toolbar {
+    position: fixed;
+    top: 50%;
+    right: 0;
+    transform: translateY(-50%);
+    background-color: #333;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 10px;
+    border-radius: 12px 0 0 12px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    z-index: 1000;
+}
+
+/* Pulsanti della toolbar */
+.right_toolbar a,
+.right_toolbar button {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 45px;
+    height: 45px;
+    background-color: #444;
+    color: #fff;
+    text-decoration: none;
+    border: none;
+    border-radius: 8px;
+    font-size: 20px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+/* Hover effetto */
+.right_toolbar a:hover,
+.right_toolbar button:hover {
+    background-color: #555;
+    transform: scale(1.1);
+}

@@ -1,0 +1,12 @@
+.jstree-root > .jstree-anchor > .jstree-themeicon {
+    background-image: url('/images/root-icon.png') !important;
+    background-size: 16px;
+}
+
+.jstree-folder > .jstree-anchor > .jstree-themeicon {
+    background-image: url('/images/folder-icon.png') !important;
+}
+
+.jstree-file > .jstree-anchor > .jstree-themeicon {
+    background-image: url('/images/file-icon.png') !important;
+}

@@ -1,0 +1,6 @@
+.leaflet-control-layers-tree {
+    width: 400px !important;
+    white-space: normal;
+    max-height: 400px;  /* limite */
+    overflow-y: auto;   /* scrollbar */
+}

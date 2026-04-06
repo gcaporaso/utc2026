@@ -1,0 +1,266 @@
+/* CSS specifico di ogni applicazione (l'unico da modificare) */
+
+
+
+/*Link correlati*/
+
+#cont_due_blocchi.link_correlati #double_box{
+	margin: 0;
+	min-height: unset;
+}
+
+#cont_due_blocchi.link_correlati #box_right{
+	position: static;
+	width: 100%;
+	clear: both;
+}
+#cont_due_blocchi.link_correlati #box_right #box_correlati{
+	background: none;
+	margin: 0;
+    text-align: unset;
+    width: 100%;
+    background-color: #ebf3fc;
+     padding-bottom: 10px;
+}
+
+#cont_due_blocchi.link_correlati #box_right #box_correlati #link_correlati{
+	background:none;
+
+	margin-top: 70px;
+	background-color: #ebf3fc;
+	border-top: 2px solid #003b71;
+	padding: 10px;
+
+}
+
+#cont_due_blocchi.link_correlati #box_right #box_correlati #link_correlati h2{
+	background:none;
+	min-height: 1px;
+	
+	color: #003b71;
+	font-size: 20px;
+	font-weight: 200;
+	color: #003b71;
+	margin-top:20px;
+}
+#cont_due_blocchi.link_correlati #box_right #box_correlati #link_correlati h2 span{
+	color: inherit;
+    display: inline;
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: 200;
+    padding: 0px;
+}
+#cont_due_blocchi.link_correlati #box_right #box_correlati #testo_correlati{
+	background:none;
+	padding: 0px;
+}
+#cont_due_blocchi.link_correlati #box_right #box_correlati #testo_correlati ul{
+	list-style: none;
+	padding-left: 0px;
+	 position: static;
+	 margin: 10px 0;
+ }
+#cont_due_blocchi.link_correlati #box_right #box_correlati #testo_correlati ul li{
+	background:none;
+}
+#cont_due_blocchi.link_correlati #box_right #box_correlati #testo_correlati ul li a{ 
+ text-decoration: underline;
+}
+#cont_due_blocchi.link_correlati #box_right #box_correlati #testo_correlati ul li a:hover, #box_correlati #testo_correlati ul li a:visited {
+	color: #eb641f;
+}
+#cont_due_blocchi.link_correlati #box_right #box_correlati #testo_correlati ul li a, #box_correlati #testo_correlati ul li a:visited {
+	color: #06c;
+}
+
+/* Fine Link correlati*/
+
+/*per mettere caratteri non titilium su main*/
+
+main{
+	 font-family: "Helvetica Neue",Helvetica,Arial,sans-serif;
+}
+
+/*Fine per mettere caratteri non titilium su main*/
+/* indentazione secondo livello menu di sinistra*/
+[id^=submenu-] > li {
+    padding-left: 10px;
+}
+/*Fine indentazione secondo livello menu di sinistra*/
+
+
+/*Area pulanti accedi serizi*/
+#box_correlati #testo_correlati #form_telematico hr.grigio {
+	margin: 20px auto;
+	clear:both;
+}
+
+#box_correlati #testo_correlati #form_telematico p a.btn {
+    padding: 10px;
+    border-radius: 5px;
+    white-space: normal;
+}
+#form_telematico p a i.fa {
+
+    float: left;
+    margin-top: 5px;
+    width: 15px;
+    height: 45px;
+	margin-left: 0px;
+}
+/*Fine Area pulanti accedi serizi*/
+
+
+/* Small devices (tablets, 768px and up) */
+@media (min-width: 768px) {
+
+}
+
+/* Medium devices (desktops, 992px and up) */
+@media (min-width: 992px) {
+
+}
+
+/* Large devices (large desktops, 1200px and up) */
+@media (min-width: 1200px) {
+	
+}
+
+/* Extra large devices (x-large desktops, 1440px and up) */
+@media (min-width: 1440px) {
+	
+}
+
+
+
+
+/* margin e padding del vecchio fieldset */
+.fieldset-old {
+	border: 1px solid #00477F;
+	padding: 10px 0;
+    margin: 0 0 30px 0;
+}
+
+/* label non bold */
+.weight-normal {
+	font-weight: normal;
+}
+
+/* label black */
+.color-black {
+	color: black;
+}
+
+/* gestione form cambio password */
+.form-width {
+	width: 551px;
+}
+
+/* gestione lista richiesta PIN */
+.label-inline {
+	display: inline;
+}
+
+/* margin dichiarazione ristampa */
+.margin-dichiarazione {
+	margin-bottom: 0px;
+}
+
+
+/* Modifiche per accessibilità */
+.btn-primary,
+.btn-primary:focus,
+.btn-primary[disabled]:hover,
+.btn-primary:not(:hover),
+.btn-primary:disabled,
+.btn-primary:not(:disabled):not(.disabled).active,
+.btn-primary:not(:disabled):not(.disabled):active,
+.show > .btn-primary.dropdown-toggle {
+	background-color: #0073e6;
+	border-color: #0073e6;
+	color: #fff;
+}
+
+.btn-info.btn-entrypoint,
+.btn-info.btn-entrypoint:focus,
+.btn-info.btn-entrypoint[disabled]:hover,
+.btn-info.btn-entrypoint:not(:hover),
+.btn-info.btn-entrypoint:disabled,
+.btn-info.btn-entrypoint:not(:disabled):not(.disabled).active,
+.btn-info.btn-entrypoint:not(:disabled):not(.disabled):active,
+.show > .btn-info.btn-entrypoint.dropdown-toggle {
+	background-color: #0073e6;
+	border-color: #0073e6;
+	color: #fff;
+}
+
+
+.btn-primary:active, .btn-primary:hover, .btn-primary:hover:active, .btn-default:active, .btn-default:hover, .btn-default:hover:active {
+    background-color: #0060bf;
+    border-color: #0059b3;
+}
+
+.btn-danger:active, .btn-danger:hover, .btn-danger:hover:active, .btn-danger:focus:active {
+    background-color: #c3253d;
+    border-color: #b9233a;
+    color: #fff;
+}
+
+.btn-danger-o:hover {
+  color: #fff;
+  background-color: #c3253d;
+  border-color: #b9233a;
+}
+
+.btn-danger-o, .btn-danger-o:active, .btn-danger-o.active, .btn-danger-o:focus, .btn-danger-o.focus, :disabled.btn-danger-o:hover, .btn-danger-o.disabled {
+    border-color: #d9364f;
+    color: #d9364f;
+    background-color: #fff;
+}
+
+
+.btn-default.btn-entrypoint:active, .btn-default.btn-entrypoint:hover, .btn-default.btn-entrypoint:hover:active, .btn-info.btn-entrypoint:active, .btn-info.btn-entrypoint:hover, .btn-info.btn-entrypoint:hover:active {
+    background-color: #0060bf;
+    border-color: #0059b3;
+}
+
+.navbar-nav > li > a:hover {
+    border-color: #eb641f; 
+    color: #004d99;
+}
+
+a:hover, #main a:not(.btn):hover:visited {
+    color: #004d99;
+}
+
+label {
+    font-weight: 600;
+}
+
+#search {
+	border-color: #919294;
+}
+
+.btn{
+	font-size: 1.1em;
+}
+
+#header-siti .btn .fa{
+	font-weight: 900;
+}
+#header-siti .btn {
+	font-size: 18px;
+}
+
+#header-siti .social a.btn{
+	font-size: 14px;
+}
+
+#menu-service .key_testata{
+	width: 14px;
+	height:14px;
+}
+
+/* Fine modifiche per accessibilità */
+

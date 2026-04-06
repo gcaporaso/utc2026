@@ -1,0 +1,255 @@
+/* 
+ * To change this license header, choose License Headers in Project Properties.
+ * To change this template file, choose Tools | Templates
+ * and open the template in the editor.
+ */
+
+
+var ETRS89Extent = [5.93, 34.76, 18.99, 47.1];
+
+proj4.defs('EPSG:6706', '+proj=longlat +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +no_defs');
+
+var ETRS89proj = new ol.proj.Projection({
+    code: 'EPSG:6706',
+    extent: ETRS89Extent
+});
+        ol.proj.addProjection(ETRS89proj);
+
+
+var Bbox_width= 18.99-5.93;
+var startResolution = Bbox_width/1024;
+var grid_resolution = new Array(30);
+for (var i = 0; i < 30; ++i) {
+	grid_resolution[i] = startResolution / Math.pow(2, i);
+}
+
+//        var startResolution = ol.extent.getWidth(ETRS89Extent) / 1024;
+//        var resolutions = new Array(22);
+//        for (var i = 0, ii = resolutions.length; i < ii; ++i) {
+//            resolutions[i] = startResolution / Math.pow(2, i);
+//        }
+        var tileGrid = new ol.tilegrid.TileGrid({
+            extent: ETRS89Extent,
+            resolutions: grid_resolution, //resolutions,
+            tileSize: [1024, 1024]
+        });
+
+
+var catasto_attributions = '<br/>cartografia di base:<br/>© ' + '<a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' +
+                           '<br/>cartografia catastale:<br/>© ' + '<a href="https://creativecommons.org/licenses/by-nc-nd/2.0/it/">Agenzia delle Entrate</a>';
+                           
+//        var catasto_attributions = [
+//            new ol.Attribution({
+//                html: '<br/>cartografia di base:<br/>© ' + '<a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+//            }),
+//            new ol.Attribution({
+//                html: '<br/>cartografia catastale:<br/>© ' + '<a href="https://creativecommons.org/licenses/by-nc-nd/2.0/it/">Agenzia delle Entrate</a>'
+//            }),
+//            new ol.Attribution({
+//                html: '<br/>navigatore:<br/> © ' + '<a href="https://tldrlegal.com/license/bsd-2-clause-license-(freebsd)">Enrico Ferreguti</a>'
+//            }),
+//        ];
+
+        var parcel_source = new ol.source.TileWMS({
+            projection: ETRS89proj,
+            attributions: catasto_attributions,
+            url: 'https://wms.cartografia.agenziaentrate.gov.it/inspire/wms/ows01.php',
+            params: {
+                'LAYERS': 'CP.CadastralParcel',
+                'TILED': true,
+                'VERSION':'1.1.1'
+            },
+            serverType: 'mapserver'
+        });
+
+        var map_getf = new ol.Map({
+            layers: [],
+            view: new ol.View({
+                projection: ETRS89proj
+            })
+        });
+
+        var map = new ol.Map({
+            layers: [
+                new ol.layer.Tile({
+                    source: new ol.source.OSM({attributions: catasto_attributions})
+                }),
+                new ol.layer.Image({
+                    title: 'province',
+                    visible: false,
+                    source: new ol.source.ImageWMS({
+                        projection: ETRS89proj,
+                        attributions: catasto_attributions,
+                        url: 'https://wms.cartografia.agenziaentrate.gov.it/inspire/wms/ows01.php',
+                        params: {
+                            'LAYERS': 'province',
+                            'VERSION':'1.1.1'
+                        },
+                        serverType: 'mapserver'
+                    })
+                }),
+                new ol.layer.Tile({
+                    title: 'province',
+                    visible: true,
+                    source: new ol.source.TileWMS({
+                        projection: ETRS89proj,
+                        attributions: catasto_attributions,
+                        url: 'https://wms.cartografia.agenziaentrate.gov.it/inspire/wms/ows01.php',
+                        params: {
+                            'LAYERS': 'province',
+                            'VERSION':'1.1.1'
+                        },
+                        serverType: 'mapserver',
+                        tileGrid: tileGrid
+                    })
+                }),
+                new ol.layer.Tile({
+                    title: 'fogli',
+                    visible: true,
+                    source: new ol.source.TileWMS({
+                        projection: ETRS89proj,
+                        attributions: catasto_attributions,
+                        url: 'https://wms.cartografia.agenziaentrate.gov.it/inspire/wms/ows01.php',
+                        params: {
+                            'LAYERS': 'CP.CadastralZoning',
+                            'VERSION':'1.1.1'
+                        },
+                        serverType: 'mapserver'
+                    })
+                }),
+                new ol.layer.Tile({
+                    title: 'strade',
+                    visible: false,
+                    source: new ol.source.TileWMS({
+                        projection: ETRS89proj,
+                        attributions: catasto_attributions,
+                        url: 'https://wms.cartografia.agenziaentrate.gov.it/inspire/wms/ows01.php',
+                        params: {
+                            'LAYERS': 'strade',
+                            'VERSION':'1.1.1'
+                        },
+                        serverType: 'mapserver'
+                    })
+                }),
+                new ol.layer.Tile({
+                    title: 'acque',
+                    visible: false,
+                    source: new ol.source.TileWMS({
+                        projection: ETRS89proj,
+                        attributions: catasto_attributions,
+                        url: 'https://wms.cartografia.agenziaentrate.gov.it/inspire/wms/ows01.php',
+                        params: {
+                            'LAYERS': 'acque',
+                            'VERSION':'1.3'
+                        },
+                        serverType: 'mapserver'
+                    })
+                }),
+                new ol.layer.Tile({
+                    title: 'particelle',
+                    extent: ETRS89Extent,
+                    visible: true,
+                    source: new ol.source.TileWMS({
+                        projection: ETRS89proj,
+                        attributions: catasto_attributions,
+                        url: 'https://wms.cartografia.agenziaentrate.gov.it/inspire/wms/ows01.php',
+                        params: {
+                            'LAYERS': 'CP.CadastralParcel',
+                            'VERSION':'1.3'
+                        },
+                        serverType: 'mapserver'
+                    })
+                }),
+                new ol.layer.Tile({
+                    title: 'fabbricati',
+                    visible: true,
+                    source: new ol.source.TileWMS({
+                        projection: ETRS89proj,
+                        attributions: catasto_attributions,
+                        url: 'https://wms.cartografia.agenziaentrate.gov.it/inspire/wms/ows01.php',
+                        params: {
+                            'LAYERS': 'fabbricati',
+                            'VERSION':'1.1.1'
+                        },
+                        serverType: 'mapserver'
+                    })
+                }),
+                new ol.layer.Tile({
+                    title: 'vestizioni',
+                    visible: true,
+                    source: new ol.source.TileWMS({
+                        projection: ETRS89proj,
+                        attributions: catasto_attributions,
+                        url: 'https://wms.cartografia.agenziaentrate.gov.it/inspire/wms/ows01.php',
+                        params: {
+                            'LAYERS': 'vestizioni',
+                            'VERSION':'1.1.1'
+                        },
+                        serverType: 'geoserver'
+                    })
+                })
+            ],
+            target: 'mapgis',
+//            controls: ol.control.defaults().extend([
+//                //new ol.control.ScaleLine(),
+//                new ol.control.MousePosition(),
+//                new ol.control.OverviewMap()
+//            ]),
+            //controls: ol.control.defaultControls().extend([new ScaleLine(), new MousePosition]),
+            controls: defaultControls.extend([new ScaleLine()]),
+            view: new ol.View({
+                center: ol.proj.transform(ol.extent.getCenter(ETRS89Extent), ETRS89proj, 'EPSG:3857'),
+                zoom: 6
+            })
+        });
+
+//        var geocoder = new Geocoder('nominatim', {
+//            provider: 'photon',
+//            lang: 'it-IT',
+//            placeholder: 'Inserisci indirizzo ...',
+//            limit: 5,
+//            keepOpen: true
+//        });
+//        map.addControl(geocoder);
+
+//        var addr_popup = new ol.Overlay.Popup();
+//        map.addOverlay(addr_popup);
+//        var getf_popup = new ol.Overlay.Popup();
+//        map.addOverlay(getf_popup);
+
+//        geocoder.on('addresschosen', function(evt) {
+//            map.getView().setCenter(evt.coordinate)
+//            map.getView().setZoom(18)
+//            window.setTimeout(function() {
+//                addr_popup.show(evt.coordinate, evt.address.formatted);
+//            }, 3000);
+//        });
+        
+        var layerSwitcher = new ol.control.LayerSwitcher({
+            tipLabel: 'Legenda' // Optional label for button
+        });
+        map.addControl(layerSwitcher);
+
+        map.on('singleclick', function(evt) {
+            map_getf.getView().setCenter(ol.proj.transform(map.getView().getCenter(), 'EPSG:3857', ETRS89proj));
+            map_getf.getView().setZoom(map.getView().getZoom());
+            var viewResolution = map_getf.getView().getResolution();
+            var url = parcel_source.getGetFeatureInfoUrl(
+                ol.proj.transform(evt.coordinate, 'EPSG:3857', ETRS89proj), map_getf.getView().getResolution(), ETRS89proj.getCode(), {
+                    'INFO_FORMAT': 'text/html',
+                    'QUERY_LAYERS': ['CP.CadastralParcel']
+                });
+            if (url) {
+                var xhttp;
+                xhttp = new XMLHttpRequest();
+                xhttp.onreadystatechange = function() {
+                    if (this.readyState == 4 && this.status == 200) {
+                        getf_popup.show(evt.coordinate, xhttp.responseText);;
+                    }
+                };
+                //bypass cors policy
+                xhttp.open("GET", "https://cors-anywhere.herokuapp.com/" + url, true);
+                xhttp.send();
+
+            }
+        });

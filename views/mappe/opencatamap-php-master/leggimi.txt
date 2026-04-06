@@ -1,0 +1,48 @@
+15 marzo 2018
+
+Dopo aver scaricato la cartografia in formato cxf dal sito dell'Agenzia delle entrate 
+ed averla importata usando qgis2 (non qgis3) tramite il plugin cxf-in e conseguentemente avendo poi trasformato i layer in shape ( epsg: ???? )
+
+
+Si devono seguire le operazioni sottostanti per trasformare gli shape generati  in layer DB.sqlite al fine di aggiornare la cartografia catastale su OCM
+
+Dettagli su:
+https://faimsproject.atlassian.net/wiki/spaces/FAIMS/pages/3014730/Importing+Shape+files+into+Spatialite+Database
+
+Comando da digitare da terminale assumendo che i files shape siano presenti nella cartella:
+
+
+spatialite_tool -i -shp particelle -d catasto_cart_4326.sqlite -t particelle -g Geometry -c utf-8 -s 4326
+
+
+mi ha funzionato alla prima!
+
+-------------------------------------------------------------------------------------
+Sequenza comandi per arrivare a catasto_cart_4326.sqlite con layer particelle funzionante...
+
+utility usate: sqlitestudio 
+https://sqlitestudio.pl/index.rvt?act=download
+
+da provare!
+
+- apro qgis
+- installo ed apro il plugin cxf-in
+- carico i file cxf in memory
+- esporto lo shp particelle con "salva con nome" esri-> epsg 4326... in una cartella (la mia è ~/Scrivania/shp2sqlite/) nominandolo particelle.shp
+- nella cartella tra i file deve essere presente il file particelle.prj che dovrebbe contenere i riferimenti geografici wgs84
+- lanciare con ./shp2spatialite_python.sh
+- viene creato il file catasto_cart_4326.sqlite
+- aprirlo con sqlitestudio e creare un campo id -> bigint che corrisponda a ofg_fid
+- lanciare la query :
+	
+	UPDATE particelle
+   	SET id = ogc_fid
+ 	WHERE particelle.ogc_fid > 0;
+
+- spostare il file "catasto_cart_4326.sqlite" dalla cartella di lavoro ~/Scrivania/shp2sqlite/ a /var/www/html/opencatamap-php/
+
+- impostare a 777 chmod			sudo chmod 777 /var/www/html/opencatamap-php/catasto_cart_4326.sqlite
+- impostare a USER-www-data chown	sudo chown cxc:www-data /var/www/html/opencatamap-php/catasto_cart_4326.sqlite
+
+
+--- fatto ciò a me funziona...

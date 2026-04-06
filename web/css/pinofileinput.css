@@ -1,0 +1,548 @@
+/*!
+ * pinofileinput v1.0.0
+ * 
+ *
+ * 
+ *
+ * Autore: Giuseppe Caporaso
+ * Copyright: 2022, Sicap S.r.l.
+ *
+  */
+.pino-file-loading input[type=file], input[type=file].pino-file-loading {
+    width: 0;
+    height: 0;
+}
+
+.pino-file-no-browse {
+    position: absolute;
+    left: 50%;
+    bottom: 20%;
+    width: 1px;
+    height: 1px;
+    font-size: 0;
+    opacity: 0;
+    border: none;
+    background: none;
+    outline: none;
+    box-shadow: none;
+}
+
+.kv-hidden, .pino-file-caption-icon, .pino-file-zoom-dialog .modal-header:before, .pino-file-zoom-dialog .modal-header:after, .pino-file-input-new .pino-file-preview, .pino-file-input-new .close, .pino-file-input-new .glyphicon-file, .pino-file-input-new .pino-fileinput-remove-button, .pino-file-input-new .pino-fileinput-upload-button, .pino-file-input-new .no-browse .input-group-btn, .pino-file-input-ajax-new .pino-fileinput-remove-button, .pino-file-input-ajax-new .pino-fileinput-upload-button, .pino-file-input-ajax-new .no-browse .input-group-btn, .hide-content .kv-file-content, .is-locked .pino-fileinput-upload-button, .is-locked .pino-fileinput-remove-button {
+    display: none;
+}
+
+.btn-file input[type=file], .pino-file-caption-icon, .pino-file-preview .pino-fileinput-remove, .krajee-default .pino-file-thumb-progress, .pino-file-zoom-dialog .btn-navigate, .pino-file-zoom-dialog .floating-buttons {
+    position: absolute;
+}
+
+.pino-file-caption-icon .kv-caption-icon {
+    line-height: inherit;
+}
+
+.pino-file-input, .pino-file-loading:before, .btn-file, .pino-file-caption, .pino-file-preview, .krajee-default.pino-file-preview-frame, .krajee-default .pino-file-thumbnail-footer, .pino-file-zoom-dialog .modal-dialog {
+    position: relative;
+}
+
+.pino-file-error-message pre, .pino-file-error-message ul, .krajee-default .pino-file-actions, .krajee-default .pino-file-other-error {
+    text-align: left;
+}
+
+.pino-file-error-message pre, .pino-file-error-message ul {
+    margin: 0;
+}
+
+.krajee-default .pino-file-drag-handle, .krajee-default .pino-file-upload-indicator {
+    float: left;
+    margin-top: 10px;
+    width: 16px;
+    height: 16px;
+}
+
+.krajee-default .pino-file-thumb-progress .progress, .krajee-default .pino-file-thumb-progress .progress-bar {
+    height: 11px;
+    font-family: Verdana, Helvetica, sans-serif;
+    font-size: 9px;
+}
+
+.krajee-default .pino-file-thumb-progress .progress, .kv-upload-progress .progress {
+    background-color: #ccc;
+}
+
+.krajee-default .pino-file-caption-info, .krajee-default .pino-file-size-info {
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 160px;
+    height: 15px;
+    margin: auto;
+}
+
+.pino-file-zoom-content > .pino-file-object.type-video, .pino-file-zoom-content > .pino-file-object.type-flash, .pino-file-zoom-content > .pino-file-object.type-image {
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+}
+
+.pino-file-zoom-content > .pino-file-object.type-video, .pino-file-zoom-content > .pino-file-object.type-flash {
+    height: 100%;
+}
+
+.pino-file-zoom-content > .pino-file-object.type-pdf, .pino-file-zoom-content > .pino-file-object.type-html, .pino-file-zoom-content > .pino-file-object.type-text, .pino-file-zoom-content > .pino-file-object.type-default {
+    width: 100%;
+}
+
+.pino-file-loading:before {
+    content: " Loading...";
+    display: inline-block;
+    padding-left: 20px;
+    line-height: 16px;
+    font-size: 13px;
+    font-variant: small-caps;
+    color: #999;
+    background: transparent url(../img/loading.gif) top left no-repeat;
+}
+
+.pino-file-object {
+    margin: 0 0 -5px 0;
+    padding: 0;
+}
+
+.btn-file {
+    overflow: hidden;
+}
+
+.btn-file input[type=file] {
+    top: 0;
+    left: 0;
+    min-width: 100%;
+    min-height: 100%;
+    text-align: right;
+    opacity: 0;
+    background: none repeat scroll 0 0 transparent;
+    cursor: inherit;
+    display: block;
+}
+
+.btn-file ::-ms-browse {
+    font-size: 10000px;
+    width: 100%;
+    height: 100%;
+}
+
+.pino-file-caption .pino-file-caption-name {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    box-shadow: none;
+    border: none;
+    background: none;
+    outline: none;
+}
+
+.pino-file-caption.icon-visible .pino-file-caption-icon {
+    display: inline-block;
+}
+
+.pino-file-caption.icon-visible .pino-file-caption-name {
+    padding-left: 15px;
+}
+
+.pino-file-caption-icon {
+    left: 8px;
+}
+
+.pino-file-error-message {
+    color: #a94442;
+    background-color: #f2dede;
+    margin: 5px;
+    border: 1px solid #ebccd1;
+    border-radius: 4px;
+    padding: 15px;
+}
+
+.pino-file-error-message pre {
+    margin: 5px 0;
+}
+
+.pino-file-caption-disabled {
+    background-color: #eee;
+    cursor: not-allowed;
+    opacity: 1;
+}
+
+.pino-file-preview {
+    border-radius: 5px;
+    border: 1px solid #ddd;
+    padding: 8px;
+    width: 100%;
+    margin-bottom: 5px;
+}
+
+.pino-file-preview .btn-xs {
+    padding: 1px 5px;
+    font-size: 12px;
+    line-height: 1.5;
+    border-radius: 3px;
+}
+
+.pino-file-preview .pino-fileinput-remove {
+    top: 1px;
+    right: 1px;
+    line-height: 10px;
+}
+
+.pino-file-preview .clickable {
+    cursor: pointer;
+}
+
+.pino-file-preview-image {
+    font: 40px Impact, Charcoal, sans-serif;
+    color: #008000;
+}
+
+.krajee-default.pino-file-preview-frame {
+    margin: 8px;
+    border: 1px solid rgba(0,0,0,0.2);
+    box-shadow: 0 0 10px 0 rgba(0,0,0,0.2);
+    padding: 6px;
+    float: left;
+    text-align: center;
+}
+
+.krajee-default.pino-file-preview-frame .kv-file-content {
+    width: 213px;
+    height: 160px;
+}
+
+.krajee-default .pino-file-preview-other-frame {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.krajee-default.pino-file-preview-frame .kv-file-content.kv-pdf-rendered {
+    width: 400px;
+}
+
+.krajee-default.pino-file-preview-frame[data-template="audio"] .kv-file-content {
+    width: 240px;
+    height: 55px;
+}
+
+.krajee-default.pino-file-preview-frame .pino-file-thumbnail-footer {
+    height: 70px;
+}
+
+.krajee-default.pino-file-preview-frame:not(.pino-file-preview-error):hover {
+    border: 1px solid rgba(0,0,0,0.3);
+    box-shadow: 0 0 10px 0 rgba(0,0,0,0.4);
+}
+
+.krajee-default .pino-file-preview-text {
+    display: block;
+    color: #428bca;
+    border: 1px solid #ddd;
+    font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
+    outline: none;
+    padding: 8px;
+    resize: none;
+}
+
+.krajee-default .pino-file-preview-html {
+    border: 1px solid #ddd;
+    padding: 8px;
+    overflow: auto;
+}
+
+.krajee-default .pino-file-other-icon {
+    font-size: 6em;
+    line-height: 1;
+}
+
+.krajee-default .pino-file-footer-buttons {
+    float: right;
+}
+
+.krajee-default .pino-file-footer-caption {
+    display: block;
+    text-align: center;
+    padding-top: 4px;
+    font-size: 11px;
+    color: #777;
+    margin-bottom: 30px;
+}
+
+.pino-file-upload-stats {
+    font-size: 10px;
+    text-align: center;
+    width: 100%;
+}
+
+.kv-upload-progress .pino-file-upload-stats {
+    font-size: 12px;
+    margin: -10px 0 5px;
+}
+
+.krajee-default .pino-file-preview-error {
+    opacity: 0.65;
+    box-shadow: none;
+}
+
+.krajee-default .pino-file-thumb-progress {
+    height: 11px;
+    top: 37px;
+    left: 0;
+    right: 0;
+}
+
+.krajee-default.kvsortable-ghost {
+    background: #e1edf7;
+    border: 2px solid #a1abff;
+}
+
+.krajee-default .pino-file-preview-other:hover {
+    opacity: 0.8;
+}
+
+.krajee-default .pino-file-preview-frame:not(.pino-file-preview-error) .pino-file-footer-caption:hover {
+    color: #000;
+}
+
+.kv-upload-progress .progress {
+    height: 20px;
+    margin: 10px 0;
+    overflow: hidden;
+}
+
+.kv-upload-progress .progress-bar {
+    height: 20px;
+    font-family: Verdana, Helvetica, sans-serif;
+}
+
+/*noinspection CssOverwrittenProperties*/
+.pino-file-zoom-dialog .pino-file-other-icon {
+    font-size: 22em;
+    font-size: 50vmin;
+}
+
+.pino-file-zoom-dialog .modal-dialog {
+    width: auto;
+}
+
+.pino-file-zoom-dialog .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.pino-file-zoom-dialog .btn-navigate {
+    padding: 0;
+    margin: 0;
+    background: transparent;
+    text-decoration: none;
+    outline: none;
+    opacity: 0.7;
+    top: 45%;
+    font-size: 4em;
+    color: #1c94c4;
+}
+
+.pino-file-zoom-dialog .btn-navigate:not([disabled]):hover {
+    outline: none;
+    box-shadow: none;
+    opacity: 0.6;
+}
+
+.pino-file-zoom-dialog .floating-buttons {
+    top: 5px;
+    right: 10px;
+}
+
+.pino-file-zoom-dialog .btn-navigate[disabled] {
+    opacity: 0.3;
+}
+
+.pino-file-zoom-dialog .btn-prev {
+    left: 1px;
+}
+
+.pino-file-zoom-dialog .btn-next {
+    right: 1px;
+}
+
+.pino-file-zoom-dialog .kv-zoom-title {
+    font-weight: 300;
+    color: #999;
+    max-width: 50%;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.pino-file-input-new .no-browse .form-control {
+    border-top-right-radius: 4px;
+    border-bottom-right-radius: 4px;
+}
+
+.pino-file-input-ajax-new .no-browse .form-control {
+    border-top-right-radius: 4px;
+    border-bottom-right-radius: 4px;
+}
+
+.pino-file-caption-main {
+    width: 100%;
+}
+
+.pino-file-thumb-loading {
+    background: transparent url(../img/loading.gif) no-repeat scroll center center content-box !important;
+}
+
+.pino-file-drop-zone {
+    border: 1px dashed #aaa;
+    border-radius: 4px;
+    text-align: center;
+    vertical-align: middle;
+    margin: 12px 15px 12px 12px;
+    padding: 5px;
+}
+
+.pino-file-drop-zone.clickable:hover {
+    border: 2px dashed #999;
+}
+
+.pino-file-drop-zone.clickable:focus {
+    border: 2px solid #5acde2;
+}
+
+.pino-file-drop-zone .pino-file-preview-thumbnails {
+    cursor: default;
+}
+
+.pino-file-drop-zone-title {
+    color: #aaa;
+    font-size: 1.6em;
+    padding: 85px 10px;
+    cursor: default;
+}
+
+.pino-file-highlighted {
+    border: 2px dashed #999 !important;
+    background-color: #eee;
+}
+
+.pino-file-uploading {
+    background: url(../img/loading-sm.gif) no-repeat center bottom 10px;
+    opacity: 0.65;
+}
+
+.pino-file-zoom-fullscreen .modal-dialog {
+    min-width: 100%;
+    margin: 0;
+}
+
+.pino-file-zoom-fullscreen .modal-content {
+    border-radius: 0;
+    box-shadow: none;
+    min-height: 100vh;
+}
+
+.pino-file-zoom-fullscreen .modal-body {
+    overflow-y: auto;
+}
+
+.floating-buttons {
+    z-index: 3000;
+}
+
+.floating-buttons .btn-kv {
+    margin-left: 3px;
+    z-index: 3000;
+}
+
+.kv-zoom-actions .btn-kv {
+    margin-left: 3px;
+}
+
+.pino-file-zoom-content {
+    height: 480px;
+    text-align: center;
+}
+
+.pino-file-zoom-content .pino-file-preview-image {
+    max-height: 100%;
+}
+
+.pino-file-zoom-content .pino-file-preview-video {
+    max-height: 100%;
+}
+
+.pino-file-zoom-content > .pino-file-object.type-image {
+    height: auto;
+    min-height: inherit;
+}
+
+.pino-file-zoom-content > .pino-file-object.type-audio {
+    width: auto;
+    height: 30px;
+}
+
+@media (min-width: 576px) {
+    .pino-file-zoom-dialog .modal-dialog {
+        max-width: 500px;
+    }
+}
+
+@media (min-width: 992px) {
+    .pino-file-zoom-dialog .modal-lg {
+        max-width: 800px;
+    }
+}
+
+@media (max-width: 767px) {
+    .pino-file-preview-thumbnails {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+    }
+
+    .pino-file-zoom-dialog .modal-header {
+        flex-direction: column;
+    }
+}
+
+@media (max-width: 350px) {
+    .krajee-default.pino-file-preview-frame:not([data-template="audio"]) .kv-file-content {
+        width: 160px;
+    }
+}
+
+@media (max-width: 420px) {
+    .krajee-default.pino-file-preview-frame .kv-file-content.kv-pdf-rendered {
+        width: 100%;
+    }
+}
+
+.pino-file-loading[dir=rtl]:before {
+    background: transparent url(../img/loading.gif) top right no-repeat;
+    padding-left: 0;
+    padding-right: 20px;
+}
+
+.pino-file-sortable .pino-file-drag-handle {
+    cursor: move;
+    opacity: 1;
+}
+
+.pino-file-sortable .pino-file-drag-handle:hover {
+    opacity: 0.7;
+}
+
+.clickable .pino-file-drop-zone-title {
+    cursor: pointer;
+}
+
+.pino-file-preview-initial.sortable-chosen {
+    background-color: #d9edf7;
+}

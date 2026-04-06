@@ -1,0 +1,77 @@
+.leaflet-control-layers-toggle.leaflet-layerstree-named-toggle {
+    margin: 2px 15px 2px 5px;
+    min-width: 300px;   /* aumenta la larghezza */
+    width: 400px; /* auto; */
+    height: auto;
+    background-image: none;
+    overflow-y: auto;   /* aggiunge scrollbar verticale */
+}
+
+.leaflet-layerstree-node {
+    margin-right: 5px;
+}
+
+.leaflet-layerstree-header input{
+    margin-left: 0px;
+    margin-right: 4px;
+}
+
+
+.leaflet-layerstree-header {
+    margin-right: 4px;
+}
+
+.leaflet-layerstree-header-pointer {
+    cursor: pointer;
+}
+
+.leaflet-layerstree-header label {
+    display: inline-block;
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1.2em;
+    margin:0;
+    padding: 2px 0; 
+}
+
+.leaflet-layerstree-header-label {
+    margin-right: 4px;
+    margin-left: 2px;
+}
+
+.leaflet-layerstree-header-name {
+    margin-right: 4px;
+}
+
+.leaflet-layerstree-header-space {
+    margin-right: 4px;
+}
+
+.leaflet-layerstree-children {
+    padding-left: 10px;
+    margin-left: 10px;  /* aumenta l'indentazione dei figli */
+}
+
+.leaflet-layerstree-children-nopad {
+    padding-left: 0px;
+}
+
+.leaflet-layerstree-closed {
+    margin-right: 4px;
+}
+
+.leaflet-layerstree-opened {
+    margin-right: 4px;
+}
+
+.leaflet-layerstree-hide {
+    display: none;
+}
+
+.leaflet-layerstree-nevershow {
+    display: none;
+}
+
+.leaflet-layerstree-expand-collapse {
+    cursor: pointer;
+}
