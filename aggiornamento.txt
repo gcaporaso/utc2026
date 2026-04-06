@@ -1,0 +1,158 @@
+PROCEDURA DI AGGIORNAMENTO DEL SERVER DI PRODUZIONE
+=====================================================
+Ultimo aggiornamento: 06/04/2026
+
+
+PREREQUISITI
+------------
+- Tailscale installato e attivo sul server di sviluppo (verificare con: tailscale status)
+- Il server di produzione (server-utc, IP Tailscale: 100.113.118.24) deve essere online
+- Accesso SSH dal server di sviluppo al server di produzione configurato tramite chiave SSH
+- Repository GitHub: git@github.com:gcaporaso/utc2026.git
+
+
+COMANDO PER AVVIARE IL DEPLOY
+------------------------------
+Dal server di sviluppo, aprire un terminale e lanciare:
+
+    bash /var/www/utcbim/scripts/deploy.sh
+
+
+COSA FA LO SCRIPT deploy.sh (PASSO PER PASSO)
+----------------------------------------------
+
+[PASSO 1/5] — PUSH SU GITHUB
+    Lo script esegue "git push origin main" dal server di sviluppo verso il
+    repository GitHub (gcaporaso/utc2026). In questo modo tutte le modifiche
+    apportate sul server di sviluppo vengono prima caricate su GitHub, che
+    funge da punto centrale di distribuzione del codice.
+    Se non ci sono modifiche nuove, viene mostrato "Everything up-to-date"
+    e si procede comunque al passo successivo.
+
+[PASSO 2/5] — BACKUP SU PRODUZIONE
+    Prima di toccare qualsiasi file sul server di produzione, lo script
+    crea automaticamente due backup salvati in /home/giuseppe/backups_pre_deploy/:
+
+    a) Backup del codice (code_YYYYMMDD_HHMMSS.tar.gz):
+       Copia compressa dell'intera cartella /var/www/utcbim, escludendo:
+       - runtime/     (file temporanei e cache, non necessari)
+       - vendor/      (librerie PHP, reinstallabili con composer)
+       - web/assets/  (asset generati automaticamente da Yii2)
+
+    b) Backup del database (db_YYYYMMDD_HHMMSS.sql.gz):
+       Dump completo del database MySQL (utcbim) compresso con gzip.
+       Le credenziali vengono lette automaticamente da config/db.php.
+       La password viene passata tramite file temporaneo (chmod 600) per
+       evitare che appaia nel process list del sistema.
+
+    I backup vengono conservati automaticamente: vengono mantenuti solo gli
+    ultimi 10 backup di codice e gli ultimi 10 di database. I più vecchi
+    vengono eliminati automaticamente.
+
+[PASSO 3/5] — AGGIORNAMENTO CODICE DA GITHUB
+    Lo script si collega via SSH al server di produzione ed esegue:
+
+    a) Salvataggio dei file di configurazione locali:
+       Prima dell'aggiornamento vengono messi al sicuro in una cartella
+       temporanea i seguenti file, che contengono impostazioni specifiche
+       del server di produzione (credenziali DB diverse, chiavi API, ecc.):
+       - config/db.php      (connessione database produzione)
+       - config/params.php  (parametri applicazione)
+       - config/web.php     (configurazione web)
+
+    b) Aggiornamento del codice:
+       - "git fetch origin main": scarica il codice aggiornato da GitHub
+       - "git reset --hard origin/main": sovrascrive tutti i file con la
+         versione di GitHub, allineando il server di produzione all'ultimo
+         commit disponibile.
+
+    c) Ripristino dei file di configurazione:
+       Dopo il reset, i file di configurazione salvati al punto (a) vengono
+       ripristinati, in modo che le impostazioni specifiche di produzione
+       non vengano mai sovrascritte dall'aggiornamento.
+
+    Al termine viene mostrato il commit attivo sul server di produzione.
+
+[PASSO 4/5] — AGGIORNAMENTO PERMESSI
+    Dopo l'aggiornamento dei file, vengono corretti i permessi per garantire
+    il corretto funzionamento dell'applicazione:
+
+    - Proprietario: giuseppe:www-data su tutta la cartella /var/www/utcbim
+    - Directory: chmod 755 (leggibili dal web server)
+    - File: chmod 644 (leggibili dal web server, scrivibili solo dal proprietario)
+    - runtime/:   chmod 777 (Yii2 deve poter scrivere cache, log, sessioni)
+    - web/assets/: chmod 777 (Yii2 deve poter scrivere gli asset compilati)
+    - yii:         chmod 755 (eseguibile da riga di comando)
+
+[PASSO 5/5] — PULIZIA CACHE
+    Vengono eseguite due operazioni di pulizia:
+
+    a) php yii cache/flush-all: svuota tutti i componenti cache registrati
+       in Yii2 (file cache, ecc.), forzando il ricalcolo al prossimo accesso.
+
+    b) Eliminazione diretta dei file in runtime/cache/: pulizia aggiuntiva
+       per rimuovere eventuali file di cache non gestiti dal comando Yii2.
+
+    Questo passaggio è importante per evitare che gli utenti vedano versioni
+    vecchie delle pagine dopo un aggiornamento.
+
+
+STRUTTURA DEI BACKUP
+--------------------
+I backup pre-deploy vengono salvati sul server di produzione in:
+
+    /home/giuseppe/backups_pre_deploy/
+
+Con la naming convention:
+    code_YYYYMMDD_HHMMSS.tar.gz   — backup del codice
+    db_YYYYMMDD_HHMMSS.sql.gz     — backup del database
+
+Vengono mantenuti i 10 backup più recenti per ciascuna tipologia.
+
+
+IN CASO DI PROBLEMI — RIPRISTINO MANUALE
+-----------------------------------------
+Se dopo un deploy l'applicazione non funziona correttamente, è possibile
+ripristinare manualmente il backup precedente sul server di produzione.
+
+Collegarsi al server di produzione:
+    ssh giuseppe@100.113.118.24
+
+Ripristinare il codice (sostituire TIMESTAMP con la data del backup):
+    cd /var/www
+    sudo tar -xzf /home/giuseppe/backups_pre_deploy/code_TIMESTAMP.tar.gz
+
+Ripristinare il database:
+    OPTFILE=$(mktemp)
+    echo '[client]' > $OPTFILE
+    echo 'password=Giorno16agosto$' >> $OPTFILE
+    chmod 600 $OPTFILE
+    gunzip -c /home/giuseppe/backups_pre_deploy/db_TIMESTAMP.sql.gz | \
+        mysql --defaults-extra-file=$OPTFILE -h 192.168.1.30 -u utcuser utcbim
+    rm -f $OPTFILE
+
+
+ATTENZIONE — FILE DI CONFIGURAZIONE PER AMBIENTE
+--------------------------------------------------
+Il file config/db.php è ESCLUSO da git (.gitignore) perché contiene
+impostazioni specifiche per ciascun server:
+
+    Sviluppo:   host=192.168.1.225
+    Produzione: host=192.168.1.30
+
+Questo file NON viene mai toccato dal deploy. Se si reinstalla
+l'applicazione su un nuovo server, va creato manualmente copiando
+config/db.php.example e adattando le credenziali.
+
+
+NOTE TECNICHE
+-------------
+- Il deploy usa SSH con chiave pubblica (nessuna password richiesta)
+- Il server di produzione è raggiungibile solo tramite la rete Tailscale
+  (indirizzo IP: 100.113.118.24, hostname: server-utc)
+- La chiave SSH del server di sviluppo è: ~/.ssh/id_ed25519
+  (aggiunta alle Deploy Keys del repository GitHub come "utcbim-server")
+- La chiave SSH del server di produzione è: ~/.ssh/id_ed25519
+  (aggiunta alle Deploy Keys del repository GitHub come "utcbim-prod")
+- I file config/db.php e config/params.php hanno valori DIVERSI tra
+  sviluppo e produzione e vengono sempre preservati durante il deploy
