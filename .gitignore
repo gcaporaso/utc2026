@@ -30,4 +30,7 @@ tests/_output/*
 tests/_support/_generated
 
 #vagrant folder
-/.vagrant
+/.vagrant.claude/
+
+# File di configurazione specifici per ambiente (non sovrascrivere in deploy)
+/config/db.php
