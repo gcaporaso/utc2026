@@ -36,16 +36,21 @@ var MINOSX_STATUS_LABEL = {
 // ---------------------------------------------------------------------------
 // Descrizioni stato da codice FAILURE (campo restituito da MinosX)
 // ---------------------------------------------------------------------------
+// Colori badge popup per codici FAILURE specifici (sovrascrivono il colore STATUS)
+var MINOSX_FAILURE_COLORS = {
+    '0313': '#cc0000'   // Lampada non funzionante — rosso
+};
+
 var MINOSX_FAILURE_LABELS = {
     '0301': 'Stato non acquisito',
     '0302': 'Lampada OK',
-    '0305': 'Dimming non eseguito'
+    '0305': 'Dimming non eseguito',
     // Altri codici da mappare quando si verificano:
     // '0303': '...',
     // '0304': '...',
     // '0307': '...',
     // '0312': '...',
-    // '0313': '...',
+    '0313': 'Lampada non funzionante',
     // '0314': '...',
     // '0315': '...',
     // '0319': '...'
@@ -61,8 +66,10 @@ var _minoxLoaded        = { lamps: false, cabinets: false };
 // ---------------------------------------------------------------------------
 // Helper: stile cerchio lampada
 // ---------------------------------------------------------------------------
-function _minoxLampStyle(status) {
-    var color = MINOSX_STATUS_COLOR[String(status)] || '#888888';
+function _minoxLampStyle(status, failureCode) {
+    var color = MINOSX_FAILURE_COLORS[String(failureCode)]
+             || MINOSX_STATUS_COLOR[String(status)]
+             || '#888888';
     return {
         radius:      5,
         fillColor:   color,
@@ -116,8 +123,10 @@ function _minoxLampPopup(props) {
     var table = document.createElement('table');
     table.style.cssText = 'font-size:0.85em;width:100%;border-collapse:collapse;';
 
-    var failureCode = String(props.FAILURE || '');
-    var failureText = MINOSX_FAILURE_LABELS[failureCode] || '';
+    var failureCode  = String(props.FAILURE || '');
+    var failureText  = MINOSX_FAILURE_LABELS[failureCode] || '';
+    var failureColor = MINOSX_FAILURE_COLORS[failureCode];
+    if (failureColor) color = failureColor;
 
     var rows = [];
     if (failureText) {
@@ -173,14 +182,15 @@ function _getMinoxLampsLayer() {
 
     _minoxLampsLayer = L.geoJSON(null, {
         pointToLayer: function(feature, latlng) {
-            return L.circleMarker(latlng, _minoxLampStyle(feature.properties.STATUS));
+            return L.circleMarker(latlng, _minoxLampStyle(feature.properties.STATUS, feature.properties.FAILURE));
         },
         onEachFeature: function(feature, layer) {
             layer.bindPopup(function() {
                 return _minoxLampPopup(feature.properties);
             });
             layer.bindTooltip('Palo ' + feature.properties.name, {
-                sticky: true, opacity: 0.85
+                sticky: true, opacity: 0.9,
+                className: 'minosx-tooltip'
             });
         }
     });

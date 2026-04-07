@@ -13,7 +13,7 @@ use app\models\TipologiaEdilizia;
 use kartik\select2\Select2;
 //use yii\bootstrap\Button;
 //use kartik\date\DatePicker;
-use kartik\number\NumberControl;
+//use kartik\number\NumberControl;
 use kartik\datecontrol\DateControl;
 //use yii\web\UrlManager;
 use yii\helpers\Url;
@@ -228,7 +228,7 @@ $this->registerJs(
     </div>
     
     
-    <?php if (($model->id_titolo ==4) OR ($model->id_titolo ==8) OR ($model->id_titolo ==9)) { ?>
+    <?php if (($model->id_titolo ==4) OR ($model->id_titolo ==8) OR ($model->id_titolo ==9) OR ($model->id_titolo ==11)) { ?>
         <div class="col-sm-1" >
        
        <?php echo $form->field($model, 'NumeroTitolo')->textInput();     ?>
@@ -359,46 +359,19 @@ $this->registerJs(
         <?php echo $form->field($model, 'TitoloOneroso')->checkbox()->label('Pratica Soggetta ad Oneri Concessori'); ?>
     </div>
     <div class="col-sm-2">
-        <?php echo $form->field($model, 'Oneri_Costruzione')->widget(NumberControl::classname(),[
-                    'name' => 'amount_oneri',
-                    //'value' => 78263232.01,
-                    'maskedInputOptions' => [
-                        'prefix' => '€ ',
-                        'groupSeparator' => '.',
-                        'radixPoint' => ','
-                        ],
-                    //'options' => $saveOptions,
-                    //'displayOptions' => $dispOptions,
-                    //'saveInputContainer' => $saveCont
-                    ])->label('Oneri Costruzione'); ?>
+        <?php echo $form->field($model, 'Oneri_Costruzione', [
+                    'template' => '{label}<div class="input-group"><span class="input-group-addon">€</span>{input}{error}</div>',
+                ])->textInput(['type' => 'number', 'step' => '0.01', 'min' => '0', 'placeholder' => '0,00'])->label('Oneri Costruzione'); ?>
     </div>
      <div class="col-sm-2">
-        <?php echo $form->field($model, 'Oneri_Urbanizzazione')->widget(NumberControl::classname(),[
-                    'name' => 'amount_oneri2',
-                    //'value' => 78263232.01,
-                    'maskedInputOptions' => [
-                        'prefix' => '€ ',
-                        'groupSeparator' => '.',
-                        'radixPoint' => ','
-                        ],
-                    //'options' => $saveOptions,
-                    //'displayOptions' => $dispOptions,
-                    //'saveInputContainer' => $saveCont
-                    ])->label('Oneri Urbanizzazione'); ?>
+        <?php echo $form->field($model, 'Oneri_Urbanizzazione', [
+                    'template' => '{label}<div class="input-group"><span class="input-group-addon">€</span>{input}{error}</div>',
+                ])->textInput(['type' => 'number', 'step' => '0.01', 'min' => '0', 'placeholder' => '0,00'])->label('Oneri Urbanizzazione'); ?>
     </div>
     <div class="col-sm-2">
-        <?php echo $form->field($model, 'Oneri_Pagati')->widget(NumberControl::classname(),[
-                    'name' => 'amount_pagato',
-                    //'value' => 78263232.01,
-                    'maskedInputOptions' => [
-                        'prefix' => '€ ',
-                        'groupSeparator' => '.',
-                        'radixPoint' => ','
-                        ],
-                    //'options' => $saveOptions,
-                    //'displayOptions' => $dispOptions,
-                    //'saveInputContainer' => $saveCont
-                    ])->label('Oneri Pagati'); ?>
+        <?php echo $form->field($model, 'Oneri_Pagati', [
+                    'template' => '{label}<div class="input-group"><span class="input-group-addon">€</span>{input}{error}</div>',
+                ])->textInput(['type' => 'number', 'step' => '0.01', 'min' => '0', 'placeholder' => '0,00'])->label('Oneri Pagati'); ?>
     </div>
 
 </div>

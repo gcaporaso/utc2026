@@ -178,6 +178,18 @@ array_walk_recursive($pratiche, function (&$item, $key) {
 
 ?>
 <style type="text/css">
+/* Tooltip pali pubblica illuminazione */
+.minosx-tooltip {
+    color: #cc0000;
+    font-weight: bold;
+    background: rgba(255,255,255,0.9);
+    border: 1px solid #cc0000;
+    border-radius: 4px;
+}
+.minosx-tooltip::before {
+    border-top-color: #cc0000;
+}
+
 /* Overlay di attesa durante la preparazione della stampa */
 #print-waiting-overlay {
     display: none;

@@ -13,7 +13,7 @@ use app\models\TitoliPaesistica;
 use kartik\select2\Select2;
 //use yii\bootstrap\Button;
 //use kartik\date\DatePicker;
-use kartik\number\NumberControl;
+//use kartik\number\NumberControl;
 use kartik\datecontrol\DateControl;
 //use yii\web\UrlManager;
 use yii\helpers\Url;
@@ -265,32 +265,14 @@ $this->registerJs(
         <?= $form->field($model, 'IndirizzoImmobile')->textInput(['maxlength' => true]) ?>
     </div>
     <div class="col-sm-2">
-        <?php echo $form->field($model, 'Indennita')->widget(NumberControl::classname(),[
-                    'name' => 'amount_oneri',
-                    //'value' => 78263232.01,
-                    'maskedInputOptions' => [
-                        'prefix' => '€ ',
-                        'groupSeparator' => '.',
-                        'radixPoint' => ','
-                        ],
-                    //'options' => $saveOptions,
-                    //'displayOptions' => $dispOptions,
-                    //'saveInputContainer' => $saveCont
-                    ])->label('Indennità Risarcitoria'); ?>
+        <?php echo $form->field($model, 'Indennita', [
+                    'template' => '{label}<div class="input-group"><span class="input-group-addon">€</span>{input}{error}</div>',
+                ])->textInput(['type' => 'number', 'step' => '0.01', 'min' => '0', 'placeholder' => '0,00'])->label('Indennità Risarcitoria'); ?>
     </div>
      <div class="col-sm-2">
-        <?php echo $form->field($model, 'IndPagata')->widget(NumberControl::classname(),[
-                    'name' => 'amount_oneri2',
-                    //'value' => 78263232.01,
-                    'maskedInputOptions' => [
-                        'prefix' => '€ ',
-                        'groupSeparator' => '.',
-                        'radixPoint' => ','
-                        ],
-                    //'options' => $saveOptions,
-                    //'displayOptions' => $dispOptions,
-                    //'saveInputContainer' => $saveCont
-                    ])->label('Indennità Pagata'); ?>
+        <?php echo $form->field($model, 'IndPagata', [
+                    'template' => '{label}<div class="input-group"><span class="input-group-addon">€</span>{input}{error}</div>',
+                ])->textInput(['type' => 'number', 'step' => '0.01', 'min' => '0', 'placeholder' => '0,00'])->label('Indennità Pagata'); ?>
     </div>
     
 

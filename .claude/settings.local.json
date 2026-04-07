@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ogr2ogr --version)",
+      "Bash(du -sh /var/www/utcbim/web/ctr2020geojson/*/LIN.geojson)",
+      "Read(//var/www/utcbim/{sum+=$1} END {print \"Totale LIN:\", sum/**)"
+    ]
+  }
+}
