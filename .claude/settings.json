@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "utcbim-db": {
+      "command": "/var/www/hubapi_env/bin/python",
+      "args": ["/var/www/utcbim/mcp_server.py"],
+      "env": {
+        "DB_HOST": "192.168.1.225",
+        "DB_NAME": "utcbim",
+        "DB_USER": "utcuser",
+        "DB_PASSWORD": "Giorno16agosto$"
+      }
+    }
+  }
+}

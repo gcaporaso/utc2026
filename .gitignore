@@ -34,3 +34,4 @@ tests/_support/_generated
 
 # File di configurazione specifici per ambiente (non sovrascrivere in deploy)
 /config/db.php
+mcp_server.log
