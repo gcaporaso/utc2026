@@ -3,10 +3,22 @@ MCP Server per il database MySQL dell'applicazione UTC BIM.
 Tutte le query sono in sola lettura (SELECT).
 """
 
+import argparse
 import os
 import mysql.connector
 from mysql.connector import Error
 from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp.server import TransportSecuritySettings
+
+# ── Argomenti CLI ──────────────────────────────────────────────────────────────
+
+_parser = argparse.ArgumentParser(description="UTC BIM MCP Server", add_help=False)
+_parser.add_argument("--transport", choices=["stdio", "sse", "streamable-http"],
+                     default=os.getenv("MCP_TRANSPORT", "stdio"))
+_parser.add_argument("--host", default=os.getenv("MCP_HOST", "0.0.0.0"))
+_parser.add_argument("--port", type=int, default=int(os.getenv("MCP_PORT", "8765")))
+_parser.add_argument("-h", "--help", action="store_true")
+_args, _ = _parser.parse_known_args()
 
 # ── Connessione ────────────────────────────────────────────────────────────────
 
@@ -35,7 +47,19 @@ def query(sql: str, params: tuple = ()) -> list[dict]:
 
 # ── Server ─────────────────────────────────────────────────────────────────────
 
-mcp = FastMCP("utcbim-db")
+# In modalità rete disabilita la protezione DNS rebinding per consentire accesso LAN
+_security = (
+    TransportSecuritySettings(enable_dns_rebinding_protection=False)
+    if _args.transport != "stdio"
+    else None
+)
+
+mcp = FastMCP(
+    "utcbim-db",
+    host=_args.host,
+    port=_args.port,
+    transport_security=_security,
+)
 
 
 # ── Tool generici ──────────────────────────────────────────────────────────────
@@ -284,4 +308,7 @@ def oneri_concessori(anno: int | None = None) -> list[dict]:
 
 
 if __name__ == "__main__":
-    mcp.run()
+    if _args.help:
+        _parser.print_help()
+    else:
+        mcp.run(transport=_args.transport)
