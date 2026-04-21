@@ -20,6 +20,9 @@ var keys = $('#selpratiche-grid').yiiGridView('getSelectedRows');
                 } else {
                     alert('Aggiunte ' + data.aggiunte + ' pratiche alla seduta.');
                 }
+                if (data.aggiunte > 0) {
+                    $('#pareri-grid').yiiGridView('applyFilter');
+                }
                 },
         error : function(xhr, status, error){
                     var errorMessage = xhr.status + ' : ' + xhr.statusText

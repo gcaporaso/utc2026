@@ -153,6 +153,7 @@ echo DynaGrid::widget([
     'theme'=>'panel-info',
     'showPersonalize'=>false,
     'gridOptions'=>[
+        'id'=>'pareri-grid',
         'dataProvider'=>$ProviderPareri,
         //'filterModel'=>$Search,
         'showPageSummary'=>false,
