@@ -313,33 +313,24 @@ class DbBackupController extends Controller
 
     /**
      * Verifica che il file SQL contenga le tabelle principali dell'applicazione.
+     * Usa zgrep/grep sull'intero file per non dipendere dalla posizione delle tabelle.
      * Restituisce null se ok, oppure una stringa di errore.
      */
     private function _verifyStructure(string $filepath, bool $isGzip): ?string
     {
-        // Tabelle indispensabili dell'applicazione
         $required = ['edilizia', 'sismica', 'paesistica', 'committenti', 'tecnici', 'user'];
+        $missing  = [];
 
-        // Legge i primi 512 KB (sufficienti per trovare le CREATE TABLE)
-        if ($isGzip) {
-            $gz = gzopen($filepath, 'rb');
-            if (!$gz) return 'Impossibile aprire il file .gz.';
-            $sample = '';
-            while (!gzeof($gz) && strlen($sample) < 524288) {
-                $sample .= gzread($gz, 65536);
-            }
-            gzclose($gz);
-        } else {
-            $fp = fopen($filepath, 'rb');
-            if (!$fp) return 'Impossibile aprire il file .sql.';
-            $sample = fread($fp, 524288);
-            fclose($fp);
-        }
-
-        $missing = [];
         foreach ($required as $table) {
-            // Cerca CREATE TABLE `tabella` oppure INSERT INTO `tabella`
-            if (!preg_match('/\b(CREATE\s+TABLE|INSERT\s+INTO)\s+[`"]?' . preg_quote($table, '/') . '[`"]?/i', $sample)) {
+            // Cerca "CREATE TABLE `tabella`" oppure "INSERT INTO `tabella`" nell'intero file
+            $pattern = '(CREATE TABLE|INSERT INTO)[[:space:]]+.?' . $table . '.?';
+            if ($isGzip) {
+                $cmd = sprintf('zgrep -qiE %s %s 2>/dev/null', escapeshellarg($pattern), escapeshellarg($filepath));
+            } else {
+                $cmd = sprintf('grep -qiE %s %s 2>/dev/null', escapeshellarg($pattern), escapeshellarg($filepath));
+            }
+            exec($cmd, $out, $rc);
+            if ($rc !== 0) {
                 $missing[] = $table;
             }
         }
