@@ -313,23 +313,34 @@ class DbBackupController extends Controller
 
     /**
      * Verifica che il file SQL contenga le tabelle principali dell'applicazione.
-     * Usa zgrep/grep sull'intero file per non dipendere dalla posizione delle tabelle.
+     * Usa zgrep/grep (percorso assoluto) sull'intero file.
      * Restituisce null se ok, oppure una stringa di errore.
      */
     private function _verifyStructure(string $filepath, bool $isGzip): ?string
     {
+        $grepBin  = '/usr/bin/grep';
+        $zgrepBin = '/usr/bin/zgrep';
+
+        // Fallback se i binari non sono nei percorsi standard
+        if (!is_executable($grepBin))  $grepBin  = 'grep';
+        if (!is_executable($zgrepBin)) $zgrepBin = 'zgrep';
+
         $required = ['edilizia', 'sismica', 'paesistica', 'committenti', 'tecnici', 'user'];
         $missing  = [];
 
+        // Pattern ampio: copre CREATE TABLE, CREATE TABLE IF NOT EXISTS, INSERT INTO
+        // con backtick, virgolette o nessun delimitatore
         foreach ($required as $table) {
-            // Cerca "CREATE TABLE `tabella`" oppure "INSERT INTO `tabella`" nell'intero file
-            $pattern = '(CREATE TABLE|INSERT INTO)[[:space:]]+.?' . $table . '.?';
-            if ($isGzip) {
-                $cmd = sprintf('zgrep -qiE %s %s 2>/dev/null', escapeshellarg($pattern), escapeshellarg($filepath));
-            } else {
-                $cmd = sprintf('grep -qiE %s %s 2>/dev/null', escapeshellarg($pattern), escapeshellarg($filepath));
-            }
+            $pattern = 'TABLE([[:space:]]+IF[[:space:]]+NOT[[:space:]]+EXISTS)?[[:space:]]+[`"]?' . $table . '[`"]?|INSERT INTO[[:space:]]+[`"]?' . $table . '[`"]?';
+            $bin     = $isGzip ? $zgrepBin : $grepBin;
+            $cmd     = sprintf('%s -qiE %s %s 2>/dev/null', $bin, escapeshellarg($pattern), escapeshellarg($filepath));
             exec($cmd, $out, $rc);
+
+            // rc=0 trovato, rc=1 non trovato, rc=2 errore comando
+            if ($rc === 2) {
+                // grep non disponibile o file illeggibile: saltiamo la verifica
+                return null;
+            }
             if ($rc !== 0) {
                 $missing[] = $table;
             }
