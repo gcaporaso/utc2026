@@ -8,6 +8,53 @@ use yii\helpers\Html;
 $this->title = 'Backup Database';
 ?>
 
+<!-- Modale ripristino da file esterno -->
+<div class="modal fade" id="modal-restore-external" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content border-danger">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="fas fa-upload mr-2"></i>Ripristina da backup esterno</h5>
+                <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <?= Html::beginForm(['db-backup/restore-external'], 'post', [
+                'enctype' => 'multipart/form-data',
+                'id'      => 'form-restore-external',
+            ]) ?>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="sqlfile"><strong>Seleziona file SQL</strong></label>
+                    <div class="custom-file">
+                        <input type="file" class="custom-file-input" id="sqlfile" name="sqlfile"
+                               accept=".sql,.gz" required>
+                        <label class="custom-file-label" for="sqlfile" id="sqlfile-label">
+                            Scegli file (.sql o .sql.gz)…
+                        </label>
+                    </div>
+                    <small class="form-text text-muted">Sono accettati file <code>.sql</code> e <code>.sql.gz</code>.</small>
+                </div>
+                <div class="alert alert-warning mb-2">
+                    <i class="fas fa-search mr-1"></i>
+                    Prima del ripristino verrà <strong>verificata la struttura</strong> del file (presenza
+                    delle tabelle principali) e creato un <strong>backup di sicurezza</strong> automatico.
+                </div>
+                <p class="text-danger mb-0">
+                    <i class="fas fa-exclamation-triangle mr-1"></i>
+                    <strong>Attenzione:</strong> tutti i dati attuali verranno sostituiti con quelli del file caricato.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Annulla</button>
+                <?= Html::submitButton(
+                    '<i class="fas fa-upload mr-1"></i>Carica e ripristina',
+                    ['class' => 'btn btn-danger', 'id' => 'btn-restore-external-submit',
+                     'onclick' => 'this.disabled=true;this.form.submit();']
+                ) ?>
+            </div>
+            <?= Html::endForm() ?>
+        </div>
+    </div>
+</div>
+
 <!-- Modale conferma ripristino -->
 <div class="modal fade" id="modal-restore" tabindex="-1" role="dialog">
     <div class="modal-dialog" role="document">
@@ -46,12 +93,18 @@ $this->title = 'Backup Database';
 <div class="container-fluid py-3">
     <div class="d-flex align-items-center justify-content-between mb-3">
         <h4 class="mb-0"><i class="fas fa-database mr-2"></i>Backup Database</h4>
-        <?= Html::beginForm(['db-backup/create'], 'post', ['class' => 'd-inline']) ?>
-            <?= Html::submitButton(
-                '<i class="fas fa-download mr-1"></i>Crea nuovo backup',
-                ['class' => 'btn btn-primary', 'onclick' => 'this.disabled=true;this.form.submit();']
-            ) ?>
-        <?= Html::endForm() ?>
+        <div class="d-flex gap-2">
+            <button type="button" class="btn btn-outline-danger mr-2"
+                    data-toggle="modal" data-target="#modal-restore-external">
+                <i class="fas fa-upload mr-1"></i>Ripristina da file esterno
+            </button>
+            <?= Html::beginForm(['db-backup/create'], 'post', ['class' => 'd-inline']) ?>
+                <?= Html::submitButton(
+                    '<i class="fas fa-download mr-1"></i>Crea nuovo backup',
+                    ['class' => 'btn btn-primary', 'onclick' => 'this.disabled=true;this.form.submit();']
+                ) ?>
+            <?= Html::endForm() ?>
+        </div>
     </div>
 
     <?php foreach (Yii::$app->session->getAllFlashes() as $type => $messages): ?>
@@ -168,4 +221,10 @@ function confirmRestore(filename) {
     document.getElementById('restore-file-input').value = filename;
     $('#modal-restore').modal('show');
 }
+
+// Aggiorna il label del file input con il nome del file scelto
+document.getElementById('sqlfile').addEventListener('change', function () {
+    var label = document.getElementById('sqlfile-label');
+    label.textContent = this.files.length ? this.files[0].name : 'Scegli file (.sql o .sql.gz)…';
+});
 </script>

@@ -193,6 +193,166 @@ class DbBackupController extends Controller
     }
 
     /**
+     * Ripristina il database da un file .sql o .sql.gz caricato dall'utente.
+     * Verifica la struttura prima del ripristino controllando la presenza
+     * delle tabelle principali dell'applicazione.
+     */
+    public function actionRestoreExternal()
+    {
+        if (!Yii::$app->request->isPost) {
+            return $this->redirect(['index']);
+        }
+
+        $upload = \yii\web\UploadedFile::getInstanceByName('sqlfile');
+
+        if (!$upload || $upload->error !== UPLOAD_ERR_OK) {
+            Yii::$app->session->addFlash('error', 'Nessun file ricevuto o errore durante il caricamento.');
+            return $this->redirect(['index']);
+        }
+
+        $origName = $upload->name;
+        $isGzip   = str_ends_with(strtolower($origName), '.gz');
+        $isSql    = str_ends_with(strtolower($origName), '.sql');
+
+        if (!$isGzip && !$isSql) {
+            Yii::$app->session->addFlash('error', 'Formato non supportato. Caricare un file .sql oppure .sql.gz.');
+            return $this->redirect(['index']);
+        }
+
+        // Salva il file in una posizione temporanea sicura
+        $tmpPath = tempnam(sys_get_temp_dir(), 'extrestore_') . ($isGzip ? '.sql.gz' : '.sql');
+        if (!$upload->saveAs($tmpPath)) {
+            Yii::$app->session->addFlash('error', 'Impossibile salvare il file caricato.');
+            return $this->redirect(['index']);
+        }
+
+        // --- 1. Verifica struttura ---
+        $checkError = $this->_verifyStructure($tmpPath, $isGzip);
+        if ($checkError) {
+            @unlink($tmpPath);
+            Yii::$app->session->addFlash('error', 'Verifica struttura fallita: ' . $checkError);
+            return $this->redirect(['index']);
+        }
+
+        [$host, $port, $dbname, $user, $password] = $this->_dbParams();
+        $backupDir = Yii::getAlias('@app/runtime/backups');
+
+        // --- 2. Backup di sicurezza prima del ripristino ---
+        $safeFile = $backupDir . '/' . $dbname . '_pre_restore_ext_' . date('Ymd_His') . '.sql.gz';
+        $optFile  = $this->_writeOptFile($password);
+
+        $cmdBackup = sprintf(
+            'mysqldump --defaults-extra-file=%s -h %s -P %s -u %s --single-transaction --routines --triggers %s | gzip > %s 2>&1',
+            escapeshellarg($optFile),
+            escapeshellarg($host),
+            escapeshellarg($port),
+            escapeshellarg($user),
+            escapeshellarg($dbname),
+            escapeshellarg($safeFile)
+        );
+        exec($cmdBackup, $outBackup, $rcBackup);
+
+        if ($rcBackup !== 0 || !file_exists($safeFile) || filesize($safeFile) === 0) {
+            @unlink($safeFile);
+            @unlink($optFile);
+            @unlink($tmpPath);
+            Yii::$app->session->addFlash('error',
+                'Impossibile creare il backup di sicurezza pre-ripristino. Operazione annullata.');
+            return $this->redirect(['index']);
+        }
+
+        // --- 3. Ripristino ---
+        if ($isGzip) {
+            $cmdRestore = sprintf(
+                'gunzip -c %s | mysql --defaults-extra-file=%s -h %s -P %s -u %s %s 2>&1',
+                escapeshellarg($tmpPath),
+                escapeshellarg($optFile),
+                escapeshellarg($host),
+                escapeshellarg($port),
+                escapeshellarg($user),
+                escapeshellarg($dbname)
+            );
+        } else {
+            $cmdRestore = sprintf(
+                'mysql --defaults-extra-file=%s -h %s -P %s -u %s %s < %s 2>&1',
+                escapeshellarg($optFile),
+                escapeshellarg($host),
+                escapeshellarg($port),
+                escapeshellarg($user),
+                escapeshellarg($dbname),
+                escapeshellarg($tmpPath)
+            );
+        }
+
+        exec($cmdRestore, $outRestore, $rcRestore);
+        @unlink($optFile);
+        @unlink($tmpPath);
+
+        if ($rcRestore !== 0) {
+            Yii::$app->session->addFlash('error',
+                'Ripristino fallito (codice ' . $rcRestore . ')'
+                . (count($outRestore) ? ': ' . implode(' ', array_slice($outRestore, 0, 3)) : '')
+                . '. Backup di sicurezza salvato: ' . basename($safeFile));
+            return $this->redirect(['index']);
+        }
+
+        // --- 4. Log ---
+        $this->_appendRestoreLog([
+            'timestamp'      => date('Y-m-d H:i:s'),
+            'restored_from'  => $origName . ' (esterno)',
+            'safety_backup'  => basename($safeFile),
+            'user'           => Yii::$app->user->identity->username ?? Yii::$app->user->id,
+        ]);
+
+        Yii::$app->session->addFlash('success',
+            'Database ripristinato da <strong>' . htmlspecialchars($origName) . '</strong>. '
+            . 'Backup di sicurezza salvato: ' . basename($safeFile));
+
+        return $this->redirect(['index']);
+    }
+
+    /**
+     * Verifica che il file SQL contenga le tabelle principali dell'applicazione.
+     * Restituisce null se ok, oppure una stringa di errore.
+     */
+    private function _verifyStructure(string $filepath, bool $isGzip): ?string
+    {
+        // Tabelle indispensabili dell'applicazione
+        $required = ['edilizia', 'sismica', 'paesistica', 'committenti', 'tecnici', 'user'];
+
+        // Legge i primi 512 KB (sufficienti per trovare le CREATE TABLE)
+        if ($isGzip) {
+            $gz = gzopen($filepath, 'rb');
+            if (!$gz) return 'Impossibile aprire il file .gz.';
+            $sample = '';
+            while (!gzeof($gz) && strlen($sample) < 524288) {
+                $sample .= gzread($gz, 65536);
+            }
+            gzclose($gz);
+        } else {
+            $fp = fopen($filepath, 'rb');
+            if (!$fp) return 'Impossibile aprire il file .sql.';
+            $sample = fread($fp, 524288);
+            fclose($fp);
+        }
+
+        $missing = [];
+        foreach ($required as $table) {
+            // Cerca CREATE TABLE `tabella` oppure INSERT INTO `tabella`
+            if (!preg_match('/\b(CREATE\s+TABLE|INSERT\s+INTO)\s+[`"]?' . preg_quote($table, '/') . '[`"]?/i', $sample)) {
+                $missing[] = $table;
+            }
+        }
+
+        if (count($missing) > 0) {
+            return 'Tabelle non trovate nel file: ' . implode(', ', $missing)
+                . '. Il file potrebbe non essere un dump del database utcbim.';
+        }
+
+        return null;
+    }
+
+    /**
      * Scarica un file di backup.
      */
     public function actionDownload(string $file)
