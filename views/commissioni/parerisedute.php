@@ -16,7 +16,7 @@ var keys = $('#selpratiche-grid').yiiGridView('getSelectedRows');
                 if (data.duplicate > 0 && data.aggiunte === 0) {
                     alert('Attenzione: tutte le pratiche selezionate sono già presenti in questa seduta.');
                 } else if (data.duplicate > 0) {
-                    alert('Aggiunte ' + data.aggiunte + ' pratiche.\n' + data.duplicate + ' erano già presenti e sono state ignorate.');
+                    alert('Aggiunte ' + data.aggiunte + ' pratiche.\\n' + data.duplicate + ' erano già presenti e sono state ignorate.');
                 } else {
                     alert('Aggiunte ' + data.aggiunte + ' pratiche alla seduta.');
                 }
