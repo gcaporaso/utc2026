@@ -231,10 +231,13 @@ var CTR2020_LABELS = {
     POI: 'Punti'
 };
 
-// Renderer canvas condiviso da tutti i layer CTR2020.
-// Usando un unico renderer il browser disegna in un solo <canvas>
-// invece di creare decine di migliaia di nodi SVG.
-var _ctr2020Renderer = L.canvas({ padding: 0.5 });
+// Renderer canvas condiviso — inizializzato al primo uso (Leaflet potrebbe
+// non essere ancora caricato al momento dell'esecuzione del modulo).
+var _ctr2020Renderer = null;
+function _getCtr2020Renderer() {
+    if (!_ctr2020Renderer) _ctr2020Renderer = L.canvas({ padding: 0.5 });
+    return _ctr2020Renderer;
+}
 
 var CTR2020_MIN_ZOOM = 14; // sotto questo zoom il CTR non è leggibile
 
@@ -267,7 +270,7 @@ function _fetchCtr2020(layer, tile, type, onSuccess) {
  */
 function _createCtr2020Layer(tile, type) {
     var layer = L.geoJSON(null, {
-        renderer: _ctr2020Renderer,
+        renderer: _getCtr2020Renderer(),
         style: function (feature) {
             var descr = feature.properties && feature.properties.Descr;
             if (type === 'LIN') return _CTR_LIN_STYLES[descr] || CTR2020_STYLES.LIN;
