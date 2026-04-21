@@ -68,33 +68,33 @@ function onEachFeatureRischio(feature, layer) {
        
 }
 // Piano Regolatore Generale
-var prgLayer = L.geoJSON(prg,{onEachFeature: onEachFeaturePRG});
+prgLayer = L.geoJSON(prg,{onEachFeature: onEachFeaturePRG});
 //prgLayer.addData(prg);
 
 
 // Piano Paesaggistico
-var ptpLayer = L.geoJSON(ptpjson,{style:style_ptp, onEachFeature: onEachFeaturePTP});
+ptpLayer = L.geoJSON(ptpjson,{style:style_ptp, onEachFeature: onEachFeaturePTP});
 //ptpLayer.addData(ptpjson);
 
 // Borghi agricoli PRG
-var borghiLayer = L.geoJSON(json_borghi_agricoli);
+borghiLayer = L.geoJSON(json_borghi_agricoli);
 //ptpLayer.addData(json_borghi_agricoli);
 
-// Vincolo Idrogeologico 
-var vidroLayer = L.geoJSON(vidro);
+// Vincolo Idrogeologico
+vidroLayer = L.geoJSON(vidro);
 
-// CTR 
+// CTR
 //var ctrp = L.geoJSON(ctrpunti);
 //var ctrc = L.geoJSON(curve);
 
 // Area a Rischio Frane Autorità di Bacino
-var pabLayer = L.geoJSON(pfraneab,{onEachFeature: onEachFeatureRischio});
+pabLayer = L.geoJSON(pfraneab,{onEachFeature: onEachFeatureRischio});
 
 // Catastale Vettoriale
 // var vcatLayer = L.geoJSON(vcataslate);
 
 // Perimetor
-var PerimetroLayer = L.geoJSON(perimetro);
+PerimetroLayer = L.geoJSON(perimetro);
 
 
 
