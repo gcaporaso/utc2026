@@ -1,7 +1,4 @@
 
-<script src="js/jquery-3.3.1.min.js" type="text/javascript">
-$('#w0').yiiGridView('applyFilter');
-</script>
 <?php  
 //use yii\grid\GridView;
 use kartik\dynagrid\DynaGrid;
