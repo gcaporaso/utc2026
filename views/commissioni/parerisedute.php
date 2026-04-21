@@ -2,7 +2,7 @@
 $this->registerJs("
 $('#selButton').on('click',function (event) {
 //alert('OK');
-var keys = $('#w3').yiiGridView('getSelectedRows');
+var keys = $('#selpratiche-grid').yiiGridView('getSelectedRows');
     $.post({
         url : '/index.php?r=commissioni/addpraticaseduta',
         type:'post',

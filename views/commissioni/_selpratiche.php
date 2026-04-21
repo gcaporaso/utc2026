@@ -109,6 +109,7 @@ echo DynaGrid::widget([
     'theme'=>'panel-info',
     'showPersonalize'=>false,
     'gridOptions'=>[
+        'id'=>'selpratiche-grid',
         'dataProvider'=>$Provider,
         //'filterModel'=>$Search,
         'showPageSummary'=>false,
