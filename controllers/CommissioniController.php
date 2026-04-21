@@ -730,30 +730,30 @@ class CommissioniController extends \yii\web\Controller
 //            return $this->redirect(['parerisedute','idcommissione'=>$idcommissione,'idseduta'=>$idseduta]);
 //        }
             $lista = array_keys($keys);
-            $num = count($keys);
+            $aggiunte = 0;
+            $duplicate = 0;
 
-            // Aggiungo la pratica alla seduta se non è già in elenco
-            //'Cannot use isset() on the result of an expression (you can use "null !== expression" instead)' 
-        for( $i=0; $i < $num; $i++ ) {
-            //echo '<option value="' . $keys[$i] . '">' . $arrayToWalk[$keys[$i]] . '</option>';
-            $isPresente=PareriCommissioni::find()
-                ->where(['commissioni_id'=>$idcommissione,'seduta_id'=>$idseduta, 'pratica_id'=>$keys[$lista[$i]]])
-                ->count();
-            ///echo Yii::$app->session->setFlash('error', "_______________Risultato:". print_r($isPresente));
-            if ($isPresente==0) {
-                $model=new PareriCommissioni();
-                $model->commissioni_id=$idcommissione;
-                $model->seduta_id=$idseduta;
-                $model->pratica_id=$keys[$lista[$i]];
-                $model->tipoparere_id=1;
-                $model->testoparere='#';
-                $model->save(false);
+            foreach ($lista as $k) {
+                $isPresente = PareriCommissioni::find()
+                    ->where(['commissioni_id' => $idcommissione, 'seduta_id' => $idseduta, 'pratica_id' => $keys[$k]])
+                    ->count();
+                if ($isPresente == 0) {
+                    $model = new PareriCommissioni();
+                    $model->commissioni_id = $idcommissione;
+                    $model->seduta_id      = $idseduta;
+                    $model->pratica_id     = $keys[$k];
+                    $model->tipoparere_id  = 1;
+                    $model->testoparere    = '#';
+                    $model->save(false);
+                    $aggiunte++;
+                } else {
+                    $duplicate++;
+                }
             }
-        }
 
         if (Yii::$app->request->isAjax) {
             Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
-            return ['success' => true];
+            return ['success' => true, 'aggiunte' => $aggiunte, 'duplicate' => $duplicate];
         }
         return $this->redirect(['parerisedute','idcommissione'=>$idcommissione,'idseduta'=>$idseduta]);
     }

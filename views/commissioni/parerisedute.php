@@ -12,8 +12,14 @@ var keys = $('#selpratiche-grid').yiiGridView('getSelectedRows');
               '_csrf' : '" . Yii::$app->request->getCsrfToken() . "'
                },
         //dataType:'json',
-        success : function(data) {      
-                alert('Tutto OK');
+        success : function(data) {
+                if (data.duplicate > 0 && data.aggiunte === 0) {
+                    alert('Attenzione: tutte le pratiche selezionate sono già presenti in questa seduta.');
+                } else if (data.duplicate > 0) {
+                    alert('Aggiunte ' + data.aggiunte + ' pratiche.\n' + data.duplicate + ' erano già presenti e sono state ignorate.');
+                } else {
+                    alert('Aggiunte ' + data.aggiunte + ' pratiche alla seduta.');
+                }
                 },
         error : function(xhr, status, error){
                     var errorMessage = xhr.status + ' : ' + xhr.statusText
