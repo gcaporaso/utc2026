@@ -750,10 +750,11 @@ class CommissioniController extends \yii\web\Controller
                 $model->save(false);
             }
         }
-        
-        
-        
-        
+
+        if (Yii::$app->request->isAjax) {
+            Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
+            return ['success' => true];
+        }
         return $this->redirect(['parerisedute','idcommissione'=>$idcommissione,'idseduta'=>$idseduta]);
     }
     

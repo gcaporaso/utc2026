@@ -9,7 +9,7 @@ var keys = $('#selpratiche-grid').yiiGridView('getSelectedRows');
         data: { 'idcommissione':" . $idcommissione . ", 
                 'idseduta':" . $idseduta . ", 
                 'data':keys,
-              ' _csrf' : '" . Yii::$app->request->getCsrfToken() . "'
+              '_csrf' : '" . Yii::$app->request->getCsrfToken() . "'
                },
         //dataType:'json',
         success : function(data) {      
