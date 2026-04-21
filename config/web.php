@@ -118,6 +118,20 @@ $config = [
             'class' => 'yii\caching\FileCache',
         ],
 
+        'assetManager' => [
+            'bundles' => [
+                // bootstrap-dialog.js usa $.fn.modal (Bootstrap 4 plugin);
+                // dichiariamo esplicitamente la dipendenza per garantire
+                // che Bootstrap venga caricato prima del bundle dialog.
+                'kartik\dialog\DialogBootstrapAsset' => [
+                    'depends' => [
+                        'kartik\dialog\DialogAsset',
+                        'yii\bootstrap4\BootstrapPluginAsset',
+                    ],
+                ],
+            ],
+        ],
+
         'i18n' => [
             'translations' => [
                 'app' => [
