@@ -3,47 +3,33 @@
 //// MARKER PRATICHE EDILIZIE /////////
 ///////////////////////////////////////
 
-var ipc = L.ExtraMarkers.icon({
-    icon: 'fa-home',
-    markerColor: 'blue',
-    shape: 'circle',
-    prefix: 'fa'
-});
+/**
+ * Crea un'icona a pin SVG colorato stile location-marker.
+ * @param {string} color  colore esadecimale (es. '#1565C0')
+ * @returns {L.DivIcon}
+ */
+function makePinIcon(color) {
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="36" viewBox="0 0 28 36">'
+        + '<path d="M14 0C6.268 0 0 6.268 0 14c0 5.523 3.14 10.312 7.75 12.75L14 36l6.25-9.25C24.86 24.312 28 19.523 28 14 28 6.268 21.732 0 14 0z"'
+        + ' fill="' + color + '" stroke="rgba(0,0,0,0.3)" stroke-width="1"/>'
+        + '<circle cx="14" cy="14" r="6" fill="white" opacity="0.85"/>'
+        + '</svg>';
+    return L.divIcon({
+        className: '',
+        html: svg,
+        iconSize:   [28, 36],
+        iconAnchor: [14, 36],
+        popupAnchor:[0, -34],
+    });
+}
 
-var iscia = L.ExtraMarkers.icon({
-    icon: 'fa-bookmark',
-    markerColor: 'orange',
-    shape: 'star',
-    prefix: 'fa'
-});
-
-var isca = L.ExtraMarkers.icon({
-    icon: 'fa-check',
-    markerColor: 'green',
-    shape: 'penta',
-    prefix: 'fa'
-});
-
-var icila = L.ExtraMarkers.icon({
-    icon: 'fa-pencil',
-    markerColor: 'cyan',
-    shape: 'square',
-    prefix: 'fa'
-});
-
-var icond = L.ExtraMarkers.icon({
-    icon: 'fa-exclamation',
-    markerColor: 'red',
-    shape: 'circle',
-    prefix: 'fa'
-});
-
-var iconc = L.ExtraMarkers.icon({
-    icon: 'fa-building',
-    markerColor: 'violet',
-    shape: 'penta',
-    prefix: 'fa'
-});
+var ipc   = makePinIcon('#1565C0'); // Permessi di Costruire — blu
+var iscia = makePinIcon('#E65100'); // SCIA               — arancione
+var icila = makePinIcon('#00838F'); // CILA               — verde acqua
+var isca  = makePinIcon('#2E7D32'); // Agibilità          — verde
+var iconc = makePinIcon('#6A1B9A'); // Concessioni        — viola
+var icond = makePinIcon('#B71C1C'); // Condoni            — rosso scuro
+var ialt  = makePinIcon('#546E7A'); // Altro              — grigio blu
 
 /**
  * Popola i layer pratiche edilizie con i marker.
@@ -133,7 +119,7 @@ function populatePratiche(data) {
             default:
                 msg = '<b>Pratica edilizia</b><br>' + Richiedente +
                       '<br>' + p.DescrizioneIntervento;
-                L.marker(latlng).bindPopup(msg).addTo(layerAltro);
+                L.marker(latlng, {icon: ialt}).bindPopup(msg).addTo(layerAltro);
         }
     }
 }

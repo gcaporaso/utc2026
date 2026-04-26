@@ -69,7 +69,7 @@ class MapAsset extends AssetBundle
         'mappe/js/cerca_particelle.js',
         'mappe/js/popup.js',
         'mappe/js/controlli.js',
-        'mappe/js/pratiche_edilizie.js?v=3',
+        'mappe/js/pratiche_edilizie.js?v=4',
         'mappe/js/scheda_urbanistica.js',
         
         ];
