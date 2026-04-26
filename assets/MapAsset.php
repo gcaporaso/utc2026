@@ -60,7 +60,7 @@ class MapAsset extends AssetBundle
         'mappe/js/leaflet.pattern.js',
         'mappe/js/multi-style-layer.js',
         'mappe/js/wms.map.catasto.js',
-        'mappe/js/function_collection.js',
+        'mappe/js/function_collection.js?v=3',
         'mappe/js/MyTileLayer.WMS.js',
         'plugins/bs-custom-file-input/bs-custom-file-input.min.js',
         
