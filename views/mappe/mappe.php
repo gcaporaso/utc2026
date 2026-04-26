@@ -488,8 +488,6 @@ array_walk_recursive($pratiche, function (&$item, $key) {
          ?>
          </div>
 
-    <?php ActiveForm::end(); ?>
-
 <!-- ── Ricerca per coordinate WGS84 ──────────────────────────────────────── -->
 <div style="display:inline-block;margin-left:15px;margin-top:4px;vertical-align:top;">
     <input type="text" id="input-lat" placeholder="Latitudine"
@@ -511,5 +509,7 @@ array_walk_recursive($pratiche, function (&$item, $key) {
         Lat: &mdash;&nbsp;&nbsp;Lng: &mdash;
     </span>
 </div>
+
+    <?php ActiveForm::end(); ?>
 
 
