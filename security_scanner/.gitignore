@@ -1,0 +1,3 @@
+security_report_*.pdf
+__pycache__/
+*.pyc
