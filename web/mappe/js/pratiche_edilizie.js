@@ -111,7 +111,7 @@ function populatePratiche(data) {
                 L.marker(latlng, {icon: icond}).bindPopup(msg).addTo(layerAltro);
                 break;
             case 11: // Concessione
-                msg = '<b>Concessione</b> ' + p.NumeroTitolo + ' del ' + DataTitolo +
+                msg = '<b>Concessione Edilizia</b> ' + p.NumeroTitolo + ' del ' + DataTitolo +
                       '<br>' + Richiedente +
                       '<br>' + p.DescrizioneIntervento;
                 L.marker(latlng, {icon: iconc}).bindPopup(msg).addTo(layerConcessioni);
