@@ -489,23 +489,23 @@ array_walk_recursive($pratiche, function (&$item, $key) {
          </div>
 
 <!-- ── Ricerca per coordinate WGS84 ──────────────────────────────────────── -->
-<div style="display:inline-block;margin-left:15px;margin-top:4px;vertical-align:top;">
+<div style="display:inline-block;margin-left:15px;margin-top:5px;">
     <input type="text" id="input-lat" placeholder="Latitudine"
         title="Latitudine WGS84 (es. 41.130500)"
-        style="width:110px;height:30px;padding:0 6px;font-size:12px;border:1px solid #ccc;border-radius:3px;" />
+        style="width:110px;height:30px;margin-top:5px;margin-left:5px;padding:0 6px;font-size:12px;border:1px solid #ccc;border-radius:3px;" />
     <input type="text" id="input-lng" placeholder="Longitudine"
         title="Longitudine WGS84 (es. 14.645500)"
-        style="width:110px;height:30px;padding:0 6px;font-size:12px;border:1px solid #ccc;border-radius:3px;margin-left:3px;" />
+        style="width:110px;height:30px;margin-top:5px;margin-left:5px;padding:0 6px;font-size:12px;border:1px solid #ccc;border-radius:3px;" />
     <button id="btn-goto-coords" class="btn btn-warning"
-        style="margin-left:4px;width:30px;height:30px;padding:0;"
+        style="margin-top:2px;margin-left:4px;width:30px;height:30px;padding:0;"
         title="Vai alle coordinate (WGS84)" onclick="goToCoords(); return false;">
         <i class="fas fa-crosshairs fa-sm"></i>
     </button>
 </div>
 <!-- ── Coordinate cursore ────────────────────────────────────────────────── -->
-<div style="display:inline-block;margin-left:25px;margin-top:8px;vertical-align:top;">
+<div style="display:inline-block;margin-left:20px;margin-top:5px;">
     <span id="map-cursor-coords"
-        style="font-size:11px;font-family:monospace;color:#555;white-space:nowrap;">
+        style="font-size:11px;font-family:monospace;color:#555;white-space:nowrap;vertical-align:middle;">
         Lat: &mdash;&nbsp;&nbsp;Lng: &mdash;
     </span>
 </div>
