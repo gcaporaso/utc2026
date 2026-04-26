@@ -230,6 +230,53 @@ RULES = [
 
 # ── Scanner ────────────────────────────────────────────────────────────────────
 
+def _strip_comments(lines: list[str], ext: str) -> list[tuple[int, str]]:
+    """
+    Restituisce solo le righe di codice attivo (numero 1-based, testo).
+    Gestisce commenti // # (riga) e blocchi /* */ per PHP/JS.
+    """
+    result = []
+    in_block = False
+    for i, raw in enumerate(lines, start=1):
+        line = raw
+
+        if ext in (".php", ".js"):
+            if in_block:
+                end = line.find("*/")
+                if end == -1:
+                    continue          # riga interamente dentro un blocco commento
+                line = line[end + 2:]
+                in_block = False
+
+            # rimuovi eventuale blocco /* ... */ tutto sulla stessa riga
+            while True:
+                start = line.find("/*")
+                if start == -1:
+                    break
+                end = line.find("*/", start + 2)
+                if end == -1:
+                    line = line[:start]
+                    in_block = True
+                    break
+                line = line[:start] + line[end + 2:]
+
+            # rimuovi commento di riga // o #
+            stripped = line.lstrip()
+            if stripped.startswith("//") or stripped.startswith("#"):
+                continue
+
+            # tronca la parte dopo // o # inline (fuori da stringhe — approssimazione)
+            for marker in ("//"," #"):
+                pos = line.find(marker)
+                if pos != -1:
+                    line = line[:pos]
+
+        if line.strip():
+            result.append((i, line))
+
+    return result
+
+
 def scan_file(filepath: str) -> list[Finding]:
     """Applica tutte le regole statiche a un singolo file."""
     ext = os.path.splitext(filepath)[1].lower()
@@ -241,10 +288,12 @@ def scan_file(filepath: str) -> list[Finding]:
     except OSError:
         return findings
 
+    active_lines = _strip_comments(lines, ext)
+
     for rule in RULES:
         if ext not in rule["extensions"]:
             continue
-        for i, line in enumerate(lines, start=1):
+        for i, line in active_lines:
             if rule["pattern"].search(line):
                 evidence = line.strip()[:120]
                 findings.append(Finding(
