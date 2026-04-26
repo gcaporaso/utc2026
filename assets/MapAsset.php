@@ -49,7 +49,7 @@ class MapAsset extends AssetBundle
         'mappe/js/layers.js',
         'mappe/js/catastali_json.js',
         'mappe/js/leaflet.extra-markers.min.js',
-        'mappe/js/leaflet-measure.js',
+        'mappe/js/leaflet-measure.js?v=2',
         'mappe/js/leaflet.contextmenu.min.js',
         'mappe/js/getfutureinfo.js',
         'mappe/js/leaflet-pip.js',
