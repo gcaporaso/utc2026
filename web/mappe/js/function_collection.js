@@ -444,3 +444,46 @@ function toggle_by_class(cls, on) {
         lst[i].style.display = on ? '' : 'none';
     }
 }
+
+// ── Ricerca per coordinate WGS84 ──────────────────────────────────────────────
+
+var _coordMarker = null;
+
+var _crosshairIcon = L.divIcon({
+    className: '',
+    html: '<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg">'
+        + '<circle cx="18" cy="18" r="8" fill="none" stroke="red" stroke-width="2.5"/>'
+        + '<line x1="18" y1="0"  x2="18" y2="10" stroke="red" stroke-width="2.5" stroke-linecap="round"/>'
+        + '<line x1="18" y1="26" x2="18" y2="36" stroke="red" stroke-width="2.5" stroke-linecap="round"/>'
+        + '<line x1="0"  y1="18" x2="10" y2="18" stroke="red" stroke-width="2.5" stroke-linecap="round"/>'
+        + '<line x1="26" y1="18" x2="36" y2="18" stroke="red" stroke-width="2.5" stroke-linecap="round"/>'
+        + '</svg>',
+    iconSize:   [36, 36],
+    iconAnchor: [18, 18],
+});
+
+/**
+ * Legge i campi #input-lat e #input-lng (WGS84), valida le coordinate e
+ * posiziona/sposta un marker a mirino rosso sulla mappa centrandola sul punto.
+ */
+function goToCoords() {
+    var latRaw = document.getElementById('input-lat').value.trim().replace(',', '.');
+    var lngRaw = document.getElementById('input-lng').value.trim().replace(',', '.');
+    var lat = parseFloat(latRaw);
+    var lng = parseFloat(lngRaw);
+
+    if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+        alert('Coordinate non valide.\nLatitudine: -90 ... +90\nLongitudine: -180 ... +180');
+        return;
+    }
+
+    var latlng = L.latLng(lat, lng);
+
+    if (_coordMarker) {
+        _coordMarker.setLatLng(latlng);
+    } else {
+        _coordMarker = L.marker(latlng, { icon: _crosshairIcon, zIndexOffset: 1000 }).addTo(map);
+    }
+
+    map.setView(latlng, 18);
+}
