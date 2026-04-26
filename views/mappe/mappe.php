@@ -152,6 +152,7 @@ $this->registerJs("
     var cartella =" . json_encode($cartellaMappe) . "; // cartella dove sono salvati i geojson catastali    
     console.log('cartella = ',cartella);  
     layers_def(map);
+    populatePratiche(" . json_encode($pratiche) . ");
     layer_catastali(map,cartella);
     addMyControls(map,baselayers,overlaysTree);
 
@@ -179,7 +180,8 @@ $this->registerJs("
 //$this->registerJsFile('js/googlemap.js',['position' => \yii\web\View::POS_HEAD]);
 
 // altro codice JS
-array_walk_recursive($pratiche, function (&$item, $key) {
+$pratiche = $pratiche ?? [];
+array_walk_recursive($pratiche, function (&$item) {
     $item = null === $item ? '' : $item;
 });
 

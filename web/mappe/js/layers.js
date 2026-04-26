@@ -101,11 +101,11 @@ PerimetroLayer = L.geoJSON(perimetro);
 
 
 
-var layerPermessi = L.layerGroup();
-var layerSCIA = L.layerGroup();
-var layerSCA = L.layerGroup();
-var layerCILA = L.layerGroup(); //.addTo(map);
-var layerAltro = L.layerGroup(); //.addTo(map);
+layerPermessi = L.layerGroup();
+layerSCIA = L.layerGroup();
+layerSCA = L.layerGroup();
+layerCILA = L.layerGroup();
+layerAltro = L.layerGroup();
 //var pratiche = L.layerGroup([layerPermessi,layerSCIA,layerSCA,layerAltro]).addTo(map);
 
 // file vettoriali catastali
