@@ -38,6 +38,13 @@ var icond = L.ExtraMarkers.icon({
     prefix: 'fa'
 });
 
+var iconc = L.ExtraMarkers.icon({
+    icon: 'fa-building',
+    markerColor: 'violet',
+    shape: 'penta',
+    prefix: 'fa'
+});
+
 /**
  * Popola i layer pratiche edilizie con i marker.
  * Chiamare dopo layers_def(map).
@@ -116,6 +123,12 @@ function populatePratiche(data) {
                       '<br>' + Richiedente +
                       '<br>' + p.DescrizioneIntervento;
                 L.marker(latlng, {icon: icond}).bindPopup(msg).addTo(layerAltro);
+                break;
+            case 11: // Concessione
+                msg = '<b>Concessione</b> ' + p.NumeroTitolo + ' del ' + DataTitolo +
+                      '<br>' + Richiedente +
+                      '<br>' + p.DescrizioneIntervento;
+                L.marker(latlng, {icon: iconc}).bindPopup(msg).addTo(layerConcessioni);
                 break;
             default:
                 msg = '<b>Pratica edilizia</b><br>' + Richiedente +

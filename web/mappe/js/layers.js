@@ -105,6 +105,7 @@ layerPermessi = L.layerGroup();
 layerSCIA = L.layerGroup();
 layerSCA = L.layerGroup();
 layerCILA = L.layerGroup();
+layerConcessioni = L.layerGroup();
 layerAltro = L.layerGroup();
 //var pratiche = L.layerGroup([layerPermessi,layerSCIA,layerSCA,layerAltro]).addTo(map);
 
@@ -204,6 +205,7 @@ overlaysTree = {
                         { label: 'SCIA', layer: layerSCIA },
                         { label: 'CILA', layer: layerCILA },
                         { label: 'Agibilità', layer: layerSCA },
+                        { label: 'Concessioni', layer: layerConcessioni },
                         { label: 'Altro', layer: layerAltro },
             ],
         }, {
