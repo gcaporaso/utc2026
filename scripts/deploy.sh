@@ -125,9 +125,42 @@ ssh "$PROD_HOST" "
 echo "      OK"
 
 # ---------------------------------------------------------------------------
-# 4. Permessi
+# 4. Migrazione database
 # ---------------------------------------------------------------------------
-echo "[4/5] Aggiornamento permessi..."
+echo "[4/6] Migrazione database..."
+ssh "$PROD_HOST" "
+    set -e
+    cd $PROD_DIR
+
+    DB_HOST=\$(php -r \"\\\$c = require 'config/db.php'; preg_match('/host=([^;]+)/', \\\$c['dsn'], \\\$m); echo \\\$m[1] ?? '127.0.0.1';\")
+    DB_NAME=\$(php -r \"\\\$c = require 'config/db.php'; preg_match('/dbname=([^;]+)/', \\\$c['dsn'], \\\$m); echo \\\$m[1] ?? '';\")
+    DB_USER=\$(php -r \"\\\$c = require 'config/db.php'; echo \\\$c['username'];\")
+    DB_PASS=\$(php -r \"\\\$c = require 'config/db.php'; echo \\\$c['password'];\")
+
+    OPTFILE=\$(mktemp)
+    printf '[client]\npassword=%s\n' \"\$DB_PASS\" > \"\$OPTFILE\"
+    chmod 600 \"\$OPTFILE\"
+    mysql --defaults-extra-file=\"\$OPTFILE\" -h \"\$DB_HOST\" -u \"\$DB_USER\" \"\$DB_NAME\" < scripts/migrate_gis.sql
+    rm -f \"\$OPTFILE\"
+    echo '      Tabelle GIS create/verificate'
+"
+echo "      OK"
+
+# ---------------------------------------------------------------------------
+# 5. Composer install
+# ---------------------------------------------------------------------------
+echo "[5/6] Composer install..."
+ssh "$PROD_HOST" "
+    set -e
+    cd $PROD_DIR
+    composer install --no-dev --no-interaction --optimize-autoloader 2>&1 | tail -5
+"
+echo "      OK"
+
+# ---------------------------------------------------------------------------
+# 6. Permessi
+# ---------------------------------------------------------------------------
+echo "[6/6] Aggiornamento permessi..."
 ssh "$PROD_HOST" "
     sudo chown -R giuseppe:www-data $PROD_DIR
     sudo find $PROD_DIR -type d -exec chmod 755 {} \;
@@ -141,7 +174,7 @@ echo "      OK"
 # ---------------------------------------------------------------------------
 # 5. Svuota cache Yii2
 # ---------------------------------------------------------------------------
-echo "[5/5] Pulizia cache..."
+echo "[6/6] Pulizia cache..."
 ssh "$PROD_HOST" "
     cd $PROD_DIR
     php yii cache/flush-all 2>/dev/null || true
