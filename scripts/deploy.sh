@@ -25,6 +25,7 @@ PROTECTED_FILES=(
     "config/db.php"
     "config/params.php"
     "config/web.php"
+    "web/index.php"
 )
 
 # ---------------------------------------------------------------------------
@@ -104,6 +105,7 @@ ssh "$PROD_HOST" "
     cp config/db.php     \$TMPDIR/db.php     2>/dev/null || true
     cp config/params.php \$TMPDIR/params.php 2>/dev/null || true
     cp config/web.php    \$TMPDIR/web.php    2>/dev/null || true
+    cp web/index.php     \$TMPDIR/index.php  2>/dev/null || true
 
     # Corregge permessi prima del reset (alcuni file potrebbero essere di www-data)
     sudo chown -R giuseppe:www-data $PROD_DIR
@@ -118,6 +120,7 @@ ssh "$PROD_HOST" "
     cp \$TMPDIR/db.php     config/db.php     2>/dev/null || true
     cp \$TMPDIR/params.php config/params.php 2>/dev/null || true
     cp \$TMPDIR/web.php    config/web.php    2>/dev/null || true
+    cp \$TMPDIR/index.php  web/index.php     2>/dev/null || true
     rm -rf \$TMPDIR
 
     echo '      Commit attivo: '\$(git log --oneline -1)
