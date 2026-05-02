@@ -40,7 +40,8 @@
         "kartik-v/yii2-detail-view": "dev-master",
         "phayes/geophp": "^1.2",
         "kartik-v/yii2-bootstrap4-dropdown": "@dev",
-        "kartik-v/yii2-widget-select2": "@dev"
+        "kartik-v/yii2-widget-select2": "@dev",
+        "gasparesganga/php-shapefile": "^3.4"
     },
     "require-dev": {
         "yiisoft/yii2-debug": "~2.1.0",

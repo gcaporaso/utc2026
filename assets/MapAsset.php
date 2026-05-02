@@ -49,7 +49,7 @@ class MapAsset extends AssetBundle
         'mappe/js/layers.js',
         'mappe/js/catastali_json.js',
         'mappe/js/leaflet.extra-markers.min.js',
-        'mappe/js/leaflet-measure.js?v=2',
+        'mappe/js/leaflet-measure.js?v=3',
         'mappe/js/leaflet.contextmenu.min.js',
         'mappe/js/getfutureinfo.js',
         'mappe/js/leaflet-pip.js',
@@ -68,7 +68,7 @@ class MapAsset extends AssetBundle
         
         'mappe/js/cerca_particelle.js',
         'mappe/js/popup.js',
-        'mappe/js/controlli.js',
+        'mappe/js/controlli.js?v=2',
         'mappe/js/pratiche_edilizie.js?v=5',
         'mappe/js/scheda_urbanistica.js',
         

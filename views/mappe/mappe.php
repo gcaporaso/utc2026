@@ -149,11 +149,93 @@ $this->registerJs("
         'Opacità Catastale': catasto,
         //'Vector Catastale':shpfile,
         };
-    var cartella =" . json_encode($cartellaMappe) . "; // cartella dove sono salvati i geojson catastali    
-    console.log('cartella = ',cartella);  
+    var cartella =" . json_encode($cartellaMappe) . "; // cartella dove sono salvati i geojson catastali
+    console.log('cartella = ',cartella);
     layers_def(map);
     populatePratiche(" . json_encode($pratiche) . ");
     layer_catastali(map,cartella);
+
+    // ── Progetti GIS ────────────────────────────────────────────────────────
+    (function() {
+        var gisProgetti = " . json_encode(array_map(function($p) {
+            return [
+                'id'     => $p->id,
+                'nome'   => $p->nome,
+                'layers' => array_map(function($l) {
+                    return ['nome' => $l->nome, 'tipo' => $l->tipo_geometria];
+                }, $p->layers),
+            ];
+        }, $gisProgetti ?? [])) . ";
+
+        if (!gisProgetti || !gisProgetti.length) return;
+
+        var palette = ['#1565C0','#E65100','#2E7D32','#6A1B9A','#B71C1C','#00838F','#546E7A','#AD1457'];
+        var geoJsonBaseUrl = " . json_encode(\yii\helpers\Url::to(['progetti-gis/geo-json'], true)) . ";
+        var geoJsonSep = geoJsonBaseUrl.indexOf('?') >= 0 ? '&' : '?';
+
+        var progettiChildren = gisProgetti.map(function(p, pIdx) {
+            var color = palette[pIdx % palette.length];
+
+            var layerGroups = {};
+            var layerChildren = p.layers.map(function(l) {
+                layerGroups[l.nome] = L.layerGroup(); // non aggiunto alla mappa: disattivo per default
+                return { label: l.nome, layer: layerGroups[l.nome] };
+            });
+            if (!p.layers.length) {
+                layerGroups['_default'] = L.layerGroup();
+                layerChildren = [{ label: p.nome, layer: layerGroups['_default'] }];
+            }
+
+            // Fetch asincrono → popola i LayerGroup e registra i bounds
+            fetch(geoJsonBaseUrl + geoJsonSep + 'id=' + p.id)
+                .then(function(r) { return r.json(); })
+                .then(function(fc) {
+                    var byLayer = {};
+                    (fc.features || []).forEach(function(f) {
+                        var ln = (f.properties && f.properties._layer) || '_default';
+                        if (!byLayer[ln]) byLayer[ln] = [];
+                        byLayer[ln].push(f);
+                    });
+
+                    Object.keys(byLayer).forEach(function(ln) {
+                        var lg = layerGroups[ln] || layerGroups['_default'];
+                        if (!lg) return;
+                        var key = 'p' + p.id + '_' + ln.replace(/\W/g,'_');
+                        var subFc = { type: 'FeatureCollection', features: byLayer[ln] };
+                        L.geoJSON(subFc, {
+                            style: function() {
+                                return { color: color, weight: 2, fillColor: color, fillOpacity: 0.3 };
+                            },
+                            pointToLayer: function(f, ll) {
+                                return L.circleMarker(ll, {
+                                    radius: 6, color: color, fillColor: color,
+                                    fillOpacity: 0.85, weight: 1
+                                });
+                            },
+                            onEachFeature: function(f, layer) {
+                                var props = Object.assign({}, f.properties);
+                                delete props._layer; delete props._tipo;
+                                var rows = Object.entries(props)
+                                    .map(function(kv) { return '<i>'+kv[0]+'</i>: '+kv[1]; })
+                                    .join('<br>');
+                                layer.bindPopup('<b>' + ln + '</b><br>' + rows);
+                            }
+                        }).addTo(lg);
+                    });
+                })
+                .catch(function(e) { console.warn('GIS caricamento fallito:', p.nome, e); });
+
+            return { label: '<b>' + p.nome + '</b>', collapsed: true, children: layerChildren };
+        });
+
+        overlaysTree.children.push({
+            label: '<b>Progetti GIS</b>',
+            collapsed: true,
+            children: progettiChildren
+        });
+    })();
+    // ────────────────────────────────────────────────────────────────────────
+
     addMyControls(map,baselayers,overlaysTree);
 
     document.getElementsByClassName('leaflet-control-measure-toggle')[0]
@@ -171,6 +253,25 @@ $this->registerJs("
 
     document.getElementById('input-lat').addEventListener('keydown', function(e) { if (e.key === 'Enter') goToCoords(); });
     document.getElementById('input-lng').addEventListener('keydown', function(e) { if (e.key === 'Enter') goToCoords(); });
+
+    map.on('click', function(e) {
+        var lat = e.latlng.lat.toFixed(6);
+        var lng = e.latlng.lng.toFixed(6);
+        var coords = lat + ' ' + lng;
+        var toastBody = document.getElementById('coords-toast-body');
+        toastBody.innerHTML = '<b>Lat:</b> ' + lat + '&nbsp;&nbsp;<b>Lng:</b> ' + lng + '<br><small class=\"text-muted\">Coordinate copiate nella clipboard</small>';
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(coords).catch(function() {});
+        } else {
+            var ta = document.createElement('textarea');
+            ta.value = coords;
+            ta.style.position = 'fixed'; ta.style.opacity = '0';
+            document.body.appendChild(ta); ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+        }
+        \$('#coords-toast').toast('show');
+    });
 
 ", yii\web\View::POS_LOAD);
 
@@ -311,6 +412,20 @@ array_walk_recursive($pratiche, function (&$item) {
 <!-- Etichetta scala (nascosta a schermo, visibile solo in stampa) -->
 <div id="print-scale-label" style="display:none;"></div>
 
+<!-- Toast coordinate clipboard -->
+<div id="coords-toast" class="toast" role="alert" aria-live="assertive" aria-atomic="true"
+     data-delay="3000"
+     style="position:fixed;bottom:60px;right:20px;z-index:99999;min-width:260px;box-shadow:0 4px 12px rgba(0,0,0,0.25);">
+    <div class="toast-header" style="background:#c0392b;color:#fff;">
+        <i class="fas fa-crosshairs mr-2"></i>
+        <strong class="mr-auto">Coordinate copiate</strong>
+        <button type="button" class="ml-2 close" data-dismiss="toast" style="color:#fff;opacity:1;" aria-label="Chiudi">
+            <span aria-hidden="true">&times;</span>
+        </button>
+    </div>
+    <div class="toast-body" id="coords-toast-body" style="font-size:13px;background:#fff;"></div>
+</div>
+
 <!-- Overlay attesa caricamento tile -->
 <div id="print-waiting-overlay">
     <div><i class="fas fa-spinner fa-spin fa-2x mb-2"></i></div>
@@ -448,50 +563,37 @@ array_walk_recursive($pratiche, function (&$item) {
         ]
     ]); 
     ?>
-        <div style="margin-left:15px;margin-top:5px!important;display: inline-block;">    
+        <div style="margin-left:15px;margin-top:5px!important;display: inline-block;">
             <?php // 'template' => '{label}{input}{error}{hint}',?>
         <?= $form->field($particella, 'foglio',['options' => ['class' => 'form-group form-inline'],])
        ->textInput(['style' => 'width: 40px; height:30px; margin-left: 5px;margin-top: 5px;']);
         ?>
         </div>
-        <div style="margin-left:5px;margin-top:5px;display: inline-block;">    
+        <div style="margin-left:5px;margin-top:5px;display: inline-block;">
         <?= $form->field($particella, 'particella',[
         'options' => ['class' => 'form-group form-inline'],])
         ->textInput(['style' => 'width: 60px; height:30px; margin-left: 5px;margin-top: 5px;']);
         ?>
         </div>
-        <div style="margin-left:15px;margin-top:5px;display: inline-block;"> 
-        <?php 
-        //Html::a('<span class="fas fa-search"></span>', Url::toRoute(['edilizia/allegati','idpratica'=>$model->edilizia_id]),
-//                      [  
-//                         'title' => 'Gestione',
-//                          
-//                         //'data-confirm' => "Sei sicuro di volere eliminare questa istanza?",
-//                         //'data-method' => 'post',
-//                         //'data-pjax' => 0
-//                      ]);   ?>
-         <?php 
+        <div style="margin-left:15px;margin-top:5px;display: inline-block;">
+         <?php
          // BUTTON PER CERCARE E ZOMMARE SULLA PARTICELLA SPECIFICATA
-         //Html::submitButton('<i class="fas fa-search"></i>', ['class' => "btn btn-success _cercap",'style' => 'margin-top: 5px;height:30px;','id' => 'btnCerca']);
-         //echo Html::submitButton(Icon::show('search'), ['class' => 'btn btn-primary _cercap btn', 'name' => 'action', 'value' => 'save']);
-         echo Html::a('<i class="fas fa-search fa-sm" ></i>',[''], ['title'=>'Zoom alla particella indicata', 
+         echo Html::a('<i class="fas fa-search fa-sm" ></i>',[''], ['title'=>'Zoom alla particella indicata',
              'class'=>'btn btn-primary _cercap','style' => 'margin-top: 2px;width:30px;height:30px;padding-left:7px!important;padding-top:0!important','id' => 'btnCerca',
              ])
-     
          ?>
-         <?php 
+         <?php
          // BUTTON PER STAMPARE LA SCHEDA URBANISTICA DELLA PARTICELLA
-         //Html::submitButton('<i class="fas fa-search"></i>', ['class' => "btn btn-success _cercap",'style' => 'margin-top: 5px;height:30px;','id' => 'btnCerca']);
-         //echo Html::submitButton(Icon::show('search'), ['class' => 'btn btn-primary _cercap btn', 'name' => 'action', 'value' => 'save']);
-         echo Html::a('<i class="fas fa-file-pdf fa-sm" ></i>',$url=false, ['title'=>'Scheda urbanistica della particella indicata', 
+         echo Html::a('<i class="fas fa-file-pdf fa-sm" ></i>',$url=false, ['title'=>'Scheda urbanistica della particella indicata',
              'class'=>'btn btn-success _surb','style' => 'margin-top: 2px;margin-left:4px;width:30px;height:30px;padding-left:8px!important;padding-top:0!important','id' => 'btnUrb',
              ])
-     
          ?>
          </div>
 
+<!-- ── Separatore inciso ─────────────────────────────────────────────────── -->
+<div style="display:inline-block;width:2px;height:30px;border-left:1px solid #aaa;border-right:1px solid #fff;margin:0 10px;vertical-align:middle;"></div>
 <!-- ── Ricerca per coordinate WGS84 ──────────────────────────────────────── -->
-<div style="display:inline-block;margin-left:15px;margin-top:5px;">
+<div style="display:inline-block;margin-left:0;margin-top:5px;">
     <input type="text" id="input-lat" placeholder="Latitudine"
         title="Latitudine WGS84 (es. 41.130500)"
         style="width:110px;height:30px;margin-top:5px;margin-left:5px;padding:0 6px;font-size:12px;border:1px solid #ccc;border-radius:3px;" />
@@ -504,8 +606,10 @@ array_walk_recursive($pratiche, function (&$item) {
         <i class="fas fa-crosshairs fa-sm"></i>
     </button>
 </div>
+<!-- ── Separatore inciso ─────────────────────────────────────────────────── -->
+<div style="display:inline-block;width:2px;height:30px;border-left:1px solid #aaa;border-right:1px solid #fff;margin:0 10px;vertical-align:middle;"></div>
 <!-- ── Coordinate cursore ────────────────────────────────────────────────── -->
-<div style="display:inline-block;margin-left:20px;margin-top:5px;">
+<div style="display:inline-block;margin-left:0;margin-top:5px;">
     <span id="map-cursor-coords"
         style="font-size:11px;font-family:monospace;color:#555;white-space:nowrap;vertical-align:middle;">
         Lat: &mdash;&nbsp;&nbsp;Lng: &mdash;

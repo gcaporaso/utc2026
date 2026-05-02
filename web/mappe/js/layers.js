@@ -208,12 +208,6 @@ overlaysTree = {
                         { label: 'Concessioni', layer: layerConcessioni },
                         { label: 'Altro', layer: layerAltro },
             ],
-        }, {
-        label: 'Progetti',
-        collapsed:true,
-            children: [
-                    {label: 'Acquedotto Grieci', layer: layerCILA},
-                ]
         },
         buildCtr2020TreeNode(),
         buildMinosxTreeNode()

@@ -1,5 +1,6 @@
 <?php
 use yii\helpers\Url;
+use yii\helpers\Html;
 ?>
 <aside class="main-sidebar sidebar-dark-primary elevation-4">
     <!-- Brand Logo -->
@@ -11,13 +12,13 @@ use yii\helpers\Url;
     <!-- Sidebar -->
     <div class="sidebar">
         <!-- Sidebar user panel (optional) -->
-        <div class="user-panel mt-2 pb-3 mb-3 d-flex">
+        <div class="user-panel mt-2 pb-3 mb-3 d-flex align-items-center" style="background:transparent !important;border-bottom:1px solid #4f5962;">
             <div class="image">
-                <img src="img/user2-160x160.jpg" class="img-circle elevation-2" alt="User Image">
+                <img src="<?= Yii::$app->request->baseUrl ?>/img/pino2.png" class="img-circle elevation-2" alt="User Image">
             </div>
-            <div class="info">
-                <a href="#" class="d-block"><?php isset(Yii::$app->user->identity->username) ? Yii::$app->user->identity->username:'**'; ?>Giuseppe Caporaso</a>
-            </div>
+            <span style="padding-left:10px;color:#c2c7d0;font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;">
+                <?= isset(Yii::$app->user->identity->username) ? Html::encode(Yii::$app->user->identity->username) : 'Giuseppe Caporaso' ?>
+            </span>
         </div>
 
         <!-- SidebarSearch Form -->
@@ -232,6 +233,29 @@ use yii\helpers\Url;
                   </ul>  
                 </li> -->
                 
+                <li class="nav-item">
+                  <a href="#" class="nav-link">
+                    <i class="nav-icon fas fa-drafting-compass text-warning"></i>
+                    <p>
+                      PROGETTI GIS
+                      <i class="right fas fa-angle-left"></i>
+                    </p>
+                  </a>
+                  <ul class="nav nav-treeview nav-child-indent">
+                    <li class="nav-item pl-1">
+                      <a href="<?= Url::to(['/progetti-gis/index']) ?>" class="nav-link">
+                        <i class="nav-icon fas fa-layer-group text-info"></i>
+                        <p>Elenco Progetti</p>
+                      </a>
+                    </li>
+                    <li class="nav-item pl-1">
+                      <a href="<?= Url::to(['/progetti-gis/create']) ?>" class="nav-link">
+                        <i class="nav-icon fas fa-plus text-info"></i>
+                        <p>Nuovo Progetto</p>
+                      </a>
+                    </li>
+                  </ul>
+                </li>
                 <li class="nav-item">
                   <a href="#" class="nav-link">
                     <i class="nav-icon fas fa-cog text-warning"></i>

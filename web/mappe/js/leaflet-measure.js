@@ -7322,7 +7322,6 @@ L.Control.Measure = L.Control.extend({
   // mouse move handler while measure in progress
   // adds floating measure marker under cursor
   _handleMeasureMove: function (evt) {
-    this._lastMeasureLatlng = evt.latlng;
     if (!this._measureDrag) {
       this._measureDrag = L.circleMarker(evt.latlng, this._symbols.getSymbol('measureDrag')).addTo(this._layer);
     } else {
@@ -7408,7 +7407,7 @@ L.Control.Measure = L.Control.extend({
   // handle map click during ongoing measurement
   // add new clicked point, update measure layers and results ui
   _handleMeasureClick: function (evt) {
-    var latlng = this._lastMeasureLatlng || this._map.mouseEventToLatLng(evt.originalEvent),
+    var latlng = this._map.mouseEventToLatLng(evt.originalEvent),
       lastClick = _.last(this._latlngs),
       vertexSymbol = this._symbols.getSymbol('measureVertex');
 

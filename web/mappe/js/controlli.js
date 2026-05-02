@@ -12,6 +12,18 @@ var myCop = new L.control.opacity(
     }
 );
 
+// Disable auto-pan by overriding the plugin's internal method(s):
+L.Control.Measure.include({
+    _setCaptureMarkerIcon: function () {
+        this._captureMarker.options.autoPanOnFocus = false;
+        this._captureMarker.setIcon(
+            L.divIcon({
+                iconSize: this._map.getSize().multiplyBy(2),
+            })
+        );
+    },
+});
+
 // Control Misurazioni
 var measureControl = new L.Control.Measure({
             position: 'topleft',

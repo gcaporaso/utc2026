@@ -67,11 +67,17 @@ class MappeController extends Controller
 
          
          
+        $gisProgetti = \app\models\GisProgetto::find()
+            ->with(['layers'])
+            ->orderBy(['nome' => SORT_ASC])
+            ->all();
+
         return $this->render('mappe', [
             'pratiche' => $model,
             'numero'=>$num,
             'particella'=>$particella,
-            'cartellaMappe'=>$cartellaMappe
+            'cartellaMappe'=>$cartellaMappe,
+            'gisProgetti'=>$gisProgetti
             
             
         ]);
