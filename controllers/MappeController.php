@@ -873,17 +873,24 @@ $particella = $_GET['particella'];
 $scheda = $this->Urbanistica('', $foglio, $particella);
 $vinc   = $this->Vincoli('', $foglio, $particella);
 
-// ── Intestatari dal catasto terreni ─────────────────────────────────────────
+// ── Dati censuari: superficie e intestatari ──────────────────────────────────
 $intestatariHtml = '';
+$supText = '';
 $ultimoDb = DatiCensuari::find()->orderBy(['dataCensuari' => SORT_DESC])->one();
 if ($ultimoDb) {
     $dblite = new SQLite3($ultimoDb->file_path_database);
     $rowPart = $dblite->querySingle(
-        "SELECT idParticella FROM PARTICELLA
-         WHERE ltrim(foglio,'0')='" . SQLite3::escapeString($foglio) . "'
-           AND ltrim(numero,'0')='" . SQLite3::escapeString($particella) . "'",
+        "SELECT PA.idParticella,
+                CP.ettari*10000 + CP.are*100 + CP.centiare AS sup_mq
+         FROM PARTICELLA PA
+         LEFT JOIN CARATTERISTICHE_PARTICELLA CP ON CP.idParticella = PA.idParticella
+         WHERE ltrim(PA.foglio,'0')='" . SQLite3::escapeString($foglio) . "'
+           AND ltrim(PA.numero,'0')='" . SQLite3::escapeString($particella) . "'",
         true
     );
+    if (!empty($rowPart['sup_mq'])) {
+        $supText = number_format((float)$rowPart['sup_mq'], 0, ',', '.') . ' m²';
+    }
     if (!empty($rowPart['idParticella'])) {
         $idPart = $rowPart['idParticella'];
         $risTit = $dblite->query("
@@ -935,9 +942,9 @@ if ($ultimoDb) {
     $content =
 '<p><b><strong>SCHEDA URBANISTICA</strong></b></p>
 <p></p>
-<p>RIFERIMENTI CATASTALI:</p>
-<p>Foglio: <b>' . $foglio . '</b> &nbsp; Particella: <b>' . $particella . '</b></p>
-<p></p>'
+<p><b>RIFERIMENTI CATASTALI:</b> &nbsp; Foglio: <b>' . $foglio . '</b> &nbsp; Particella: <b>' . $particella . '</b></p>'
+. ($supText ? '<p>Superficie Catastale: <b>' . $supText . '</b></p>' : '')
+. '<p></p>'
 . $intestatariHtml .
 '<p><b>PIANO REGOLATORE GENERALE:</b></p>
 <p>Destinazione Urbanistica:</p>' . $scheda . '
