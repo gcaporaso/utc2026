@@ -870,29 +870,85 @@ if(!isset($_GET['particella']) or empty($_GET['particella']))
 $foglio = $_GET['foglio'];
 $particella = $_GET['particella'];
 
-$scheda= $this->Urbanistica('', $foglio, $particella);
-$vinc=$this->Vincoli('', $foglio, $particella);
-        
-    $content =  
-'
-<p><b><strong>SCHEDA URBANISTICA</strong></b></p>
-<p></p>
+$scheda = $this->Urbanistica('', $foglio, $particella);
+$vinc   = $this->Vincoli('', $foglio, $particella);
+
+// ── Intestatari dal catasto terreni ─────────────────────────────────────────
+$intestatariHtml = '';
+$ultimoDb = DatiCensuari::find()->orderBy(['dataCensuari' => SORT_DESC])->one();
+if ($ultimoDb) {
+    $dblite = new SQLite3($ultimoDb->file_path_database);
+    $rowPart = $dblite->querySingle(
+        "SELECT idParticella FROM PARTICELLA
+         WHERE ltrim(foglio,'0')='" . SQLite3::escapeString($foglio) . "'
+           AND ltrim(numero,'0')='" . SQLite3::escapeString($particella) . "'",
+        true
+    );
+    if (!empty($rowPart['idParticella'])) {
+        $idPart = $rowPart['idParticella'];
+        $risTit = $dblite->query("
+            SELECT
+              CASE WHEN T.tipoSoggetto='P'
+                   THEN PF.cognome||' '||PF.nome
+                   ELSE PG.denominazione END AS denominazione,
+              CASE WHEN T.tipoSoggetto='P' THEN PF.codFiscale
+                   ELSE PG.codFiscale END AS cod_fisc,
+              CD.decodifica||' '||T.titoloNonCod AS diritto,
+              T.quotaNum||'/'||T.quotaDen AS quota
+            FROM TITOLARITA T
+            LEFT JOIN PERSONA_FISICA    PF ON PF.idSoggetto = T.idSoggetto
+            LEFT JOIN PERSONA_GIURIDICA PG ON PG.idSoggetto = T.idSoggetto
+            LEFT JOIN COD_DIRITTO       CD ON CD.codice = T.codDiritto
+            WHERE T.idParticella='" . SQLite3::escapeString($idPart) . "'
+            ORDER BY PF.cognome, PF.nome, PG.denominazione
+        ");
+        $righe = '';
+        while ($t = $risTit->fetchArray(SQLITE3_ASSOC)) {
+            $righe .= '<tr>'
+                . '<td style="padding:2px 6px;border:1px solid #ccc;">' . htmlspecialchars($t['denominazione'] ?? '') . '</td>'
+                . '<td style="padding:2px 6px;border:1px solid #ccc;">' . htmlspecialchars($t['cod_fisc'] ?? '') . '</td>'
+                . '<td style="padding:2px 6px;border:1px solid #ccc;">' . htmlspecialchars($t['diritto'] ?? '') . '</td>'
+                . '<td style="padding:2px 6px;border:1px solid #ccc;">' . htmlspecialchars($t['quota'] ?? '') . '</td>'
+                . '</tr>';
+        }
+        if ($righe) {
+            $intestatariHtml = '
+<p><b>INTESTATARI:</b></p>
+<table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
+  <thead>
+    <tr style="background:#e8e8e8;">
+      <th style="padding:2px 6px;border:1px solid #ccc;text-align:left;">Denominazione</th>
+      <th style="padding:2px 6px;border:1px solid #ccc;text-align:left;">Cod. Fiscale</th>
+      <th style="padding:2px 6px;border:1px solid #ccc;text-align:left;">Diritto</th>
+      <th style="padding:2px 6px;border:1px solid #ccc;text-align:left;">Quota</th>
+    </tr>
+  </thead>
+  <tbody>' . $righe . '</tbody>
+</table>
+<p></p>';
+        }
+    }
+    $dblite->close();
+}
+// ────────────────────────────────────────────────────────────────────────────
+
+    $content =
+'<p><b><strong>SCHEDA URBANISTICA</strong></b></p>
 <p></p>
 <p>RIFERIMENTI CATASTALI:</p>
-<p>Foglio: <b>' . $foglio .'</b> Particella <b>' . $particella .'</b></p>
-<p></p>
-<p><b>PIANO REGOLATORE GENERALE:</b></p>
-<p>Destinazione Urbanistica:</p>'. $scheda .'
-<p></p>
+<p>Foglio: <b>' . $foglio . '</b> &nbsp; Particella: <b>' . $particella . '</b></p>
+<p></p>'
+. $intestatariHtml .
+'<p><b>PIANO REGOLATORE GENERALE:</b></p>
+<p>Destinazione Urbanistica:</p>' . $scheda . '
 <p></p>
 <p><b>VINCOLI:</b></p>
 <p>' . $vinc . '</p>
 <p></p>
 <p style="font-size: 0.75rem">Note: La presente scheda è per uso interno e non costituisce certificato ufficiale di destinazione urbanistica</p>
 <p></p>
-<p></p>
 <div><p></p></div>
-<p>Campoli del Monte Taburno, li '. date("d-m-Y") . '</p>
+<p>Campoli del Monte Taburno, li ' . date("d-m-Y") . '</p>
 <p>&nbsp;</p>';       
 //$this->renderPartial('_reportView');
     
