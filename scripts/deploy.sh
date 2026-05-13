@@ -170,6 +170,7 @@ ssh "$PROD_HOST" "
     sudo find $PROD_DIR -type f -exec chmod 644 {} \;
     sudo chmod -R 777 $PROD_DIR/runtime
     sudo chmod -R 777 $PROD_DIR/web/assets
+    sudo chmod -R 775 $PROD_DIR/web/tmp
     sudo chmod 755 $PROD_DIR/yii
 " 2>&1 || echo "      (permessi: eseguire manualmente con sudo se necessario)"
 echo "      OK"
