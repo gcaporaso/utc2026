@@ -172,6 +172,10 @@ ssh "$PROD_HOST" "
     sudo chmod -R 777 $PROD_DIR/web/assets
     sudo chmod -R 775 $PROD_DIR/web/tmp
     sudo chmod -R 775 $PROD_DIR/web/cdu
+    sudo chmod -R 775 $PROD_DIR/web/commissioni
+    sudo chmod -R 775 $PROD_DIR/web/allegati
+    sudo chmod -R 775 $PROD_DIR/web/pratiche
+    sudo chmod -R 775 $PROD_DIR/web/sismica
     sudo chmod 755 $PROD_DIR/yii
 " 2>&1 || echo "      (permessi: eseguire manualmente con sudo se necessario)"
 echo "      OK"
