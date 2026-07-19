@@ -52,12 +52,13 @@ function addusrmsg(msg, utente) {
 }
 
 // ---------------------------------------------------------------------------
-// Aggiunge un messaggio AI nella chat
+// Aggiunge un messaggio AI nella chat con pulsanti feedback
 // ---------------------------------------------------------------------------
 function addassmsg(text, extra) {
-    const cmsgs = document.getElementById('chatbody');
-    const div   = document.createElement('div');
-    const html  = String(text).replace(/\n/g, '<br>');
+    const cmsgs  = document.getElementById('chatbody');
+    const div    = document.createElement('div');
+    const html   = String(text).replace(/\n/g, '<br>');
+    const logId  = extra && extra.log_id ? extra.log_id : 0;
 
     let extraHtml = '';
     if (extra && extra.count !== undefined && extra.count !== null) {
@@ -70,6 +71,14 @@ function addassmsg(text, extra) {
         extraHtml += `<div class="chat-map-badge mt-1"><small><i class="fas fa-map-marked-alt"></i> Azione eseguita sulla mappa</small></div>`;
     }
 
+    // Pulsanti feedback
+    const feedbackHtml = logId ? `
+        <div class="chat-feedback mt-1" id="fb-${logId}">
+            <small class="text-muted">Risposta utile?</small>
+            <button class="btn btn-xs btn-outline-success ml-1" onclick="sendFeedback(${logId},1,this)" title="Sì, risposta corretta">👍</button>
+            <button class="btn btn-xs btn-outline-danger ml-1"  onclick="sendFeedback(${logId},0,this)" title="No, risposta errata">👎</button>
+        </div>` : '';
+
     div.innerHTML = `
         <div class="direct-chat-msg">
             <div class="direct-chat-infos clearfix">
@@ -77,7 +86,7 @@ function addassmsg(text, extra) {
                 <span class="direct-chat-timestamp float-right">${dataoggi()}</span>
             </div>
             <img class="direct-chat-img" src="img/user2-160x160.jpg" alt="AI">
-            <div class="direct-chat-text">${html}${extraHtml}</div>
+            <div class="direct-chat-text">${html}${extraHtml}${feedbackHtml}</div>
         </div>`;
     cmsgs.appendChild(div);
     cmsgs.scrollTop = cmsgs.scrollHeight;
@@ -277,4 +286,31 @@ function toggleLayer(layerName, visible) {
 
 function resetMap() {
     if (_highlightGroup) _highlightGroup.clearLayers();
+}
+
+// ---------------------------------------------------------------------------
+// Invio feedback 👍 / 👎
+// ---------------------------------------------------------------------------
+function sendFeedback(logId, value, btn) {
+    btn.disabled = true;
+    var note = '';
+    if (value === 0) {
+        note = prompt('(Facoltativo) Cosa c\'era di sbagliato nella risposta?') || '';
+    }
+    $.ajax({
+        url:  'index.php?r=chat/feedback',
+        type: 'POST',
+        data: { log_id: logId, value: value, note: note },
+    }).done(function (r) {
+        if (r && r.ok) {
+            var container = document.getElementById('fb-' + logId);
+            if (container) {
+                container.innerHTML = value === 1
+                    ? '<small class="text-success">👍 Grazie per il feedback!</small>'
+                    : '<small class="text-danger">👎 Annotato — lo useremo per migliorare il modello.</small>';
+            }
+        } else {
+            btn.disabled = false;
+        }
+    }).fail(function () { btn.disabled = false; });
 }

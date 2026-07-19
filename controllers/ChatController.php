@@ -213,8 +213,70 @@ REGOLE FONDAMENTALI:
     }
 
     // -----------------------------------------------------------------------
-    // VIEW principale
+    // VIEW principale + Log admin
     // -----------------------------------------------------------------------
+
+    public function actionLog(): Response|string
+    {
+        $type     = Yii::$app->request->get('type');
+        $feedback = Yii::$app->request->get('feedback');
+        $q        = Yii::$app->request->get('q');
+        $export   = Yii::$app->request->get('export');
+
+        $where  = ['1=1'];
+        $params = [];
+        if ($type)          { $where[] = 'action_type = :type';          $params[':type']  = $type; }
+        if ($q)             { $where[] = 'user_query LIKE :q';            $params[':q']     = '%' . $q . '%'; }
+        if ($feedback === 'neg')  { $where[] = 'feedback = 0'; }
+        if ($feedback === 'pos')  { $where[] = 'feedback = 1'; }
+        if ($feedback === 'none') { $where[] = 'feedback IS NULL'; }
+
+        $sql = 'SELECT * FROM ai_chat_log WHERE ' . implode(' AND ', $where) . ' ORDER BY id DESC LIMIT 500';
+
+        try {
+            $rows = Yii::$app->db->createCommand($sql, $params)->queryAll();
+        } catch (\Exception) {
+            $rows = [];
+        }
+
+        // Export JSONL per il fine-tuning (feedback negativi o errori)
+        if ($export === 'jsonl') {
+            Yii::$app->response->format = Response::FORMAT_RAW;
+            Yii::$app->response->headers->set('Content-Type', 'application/x-ndjson');
+            Yii::$app->response->headers->set('Content-Disposition', 'attachment; filename="ai_finetune_candidates.jsonl"');
+            $lines = [];
+            foreach ($rows as $r) {
+                $lines[] = json_encode([
+                    'id'         => $r['id'],
+                    'query'      => $r['user_query'],
+                    'type'       => $r['action_type'],
+                    'sql'        => $r['sql_query'],
+                    'feedback'   => $r['feedback'],
+                    'note'       => $r['feedback_note'],
+                    'response_ok'=> (bool)$r['response_ok'],
+                ], JSON_UNESCAPED_UNICODE);
+            }
+            return Yii::$app->response->data = implode("\n", $lines);
+        }
+
+        try {
+            $stats = Yii::$app->db->createCommand('
+                SELECT
+                    COUNT(*)                                                AS totale,
+                    SUM(response_ok)                                        AS ok,
+                    SUM(1 - response_ok)                                    AS errori,
+                    SUM(CASE WHEN feedback = 1 THEN 1 ELSE 0 END)          AS feedback_pos,
+                    SUM(CASE WHEN feedback = 0 THEN 1 ELSE 0 END)          AS feedback_neg,
+                    ROUND(AVG(response_ms))                                 AS avg_ms
+                FROM ai_chat_log
+            ')->queryOne();
+        } catch (\Exception) {
+            $stats = ['totale' => 0, 'ok' => 0, 'errori' => 0, 'feedback_pos' => 0, 'feedback_neg' => 0, 'avg_ms' => 0];
+        }
+
+        $this->layout = 'main';
+        return $this->render('log', ['rows' => $rows, 'stats' => $stats]);
+    }
 
     public function actionStatus(): Response
     {
@@ -250,6 +312,8 @@ REGOLE FONDAMENTALI:
             return $this->asJson(['error' => 'Messaggio vuoto.']);
         }
 
+        $tStart = microtime(true);
+
         // Step 1: testo → JSON action (sql / map / clarify)
         $action = $this->callOllama([
             ['role' => 'system', 'content' => $this->buildSystemPrompt()],
@@ -257,30 +321,70 @@ REGOLE FONDAMENTALI:
         ]);
 
         if (isset($action['error'])) {
+            $this->log($userMessage, 'error', null, null, null, false, (int)((microtime(true) - $tStart) * 1000));
             return $this->asJson(['response' => 'Errore AI: ' . $action['error']]);
         }
 
         $parsed = $this->parseJson($action['content'] ?? '');
         if ($parsed === null) {
+            $this->log($userMessage, 'error', null, null, null, false, (int)((microtime(true) - $tStart) * 1000));
             return $this->asJson(['response' => $action['content'] ?? 'Risposta non valida dal modello.']);
         }
 
+        $ms = (int)((microtime(true) - $tStart) * 1000);
+
         switch ($parsed['type'] ?? '') {
             case 'sql':
-                return $this->asJson($this->handleSql($parsed['query'] ?? '', $userMessage));
+                $result = $this->handleSql($parsed['query'] ?? '', $userMessage);
+                $ok     = !isset($result['error']);
+                $logId  = $this->log($userMessage, 'sql', $parsed['query'] ?? null, null, $result['count'] ?? null, $ok, $ms);
+                $result['log_id'] = $logId;
+                return $this->asJson($result);
 
             case 'map':
+                $logId = $this->log($userMessage, 'map', null, $parsed['action'] ?? null, null, true, $ms);
                 return $this->asJson([
-                    'response' => 'Azione mappa eseguita.',
+                    'response'   => 'Azione mappa eseguita.',
                     'map_action' => $parsed,
+                    'log_id'     => $logId,
                 ]);
 
             case 'clarify':
-                return $this->asJson(['response' => $parsed['message'] ?? 'Domanda non chiara.']);
+                $logId = $this->log($userMessage, 'clarify', null, null, null, true, $ms);
+                return $this->asJson(['response' => $parsed['message'] ?? 'Domanda non chiara.', 'log_id' => $logId]);
 
             default:
-                return $this->asJson(['response' => $action['content']]);
+                $logId = $this->log($userMessage, 'error', null, null, null, false, $ms);
+                return $this->asJson(['response' => $action['content'], 'log_id' => $logId]);
         }
+    }
+
+    // -----------------------------------------------------------------------
+    // ENDPOINT AJAX: feedback utente (👍 / 👎)
+    // -----------------------------------------------------------------------
+
+    public function actionFeedback(): Response
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+
+        $logId   = (int)Yii::$app->request->post('log_id', 0);
+        $value   = (int)Yii::$app->request->post('value', -1);   // 1=positivo, 0=negativo
+        $note    = trim(Yii::$app->request->post('note', ''));
+
+        if ($logId <= 0 || !in_array($value, [0, 1], true)) {
+            return $this->asJson(['ok' => false]);
+        }
+
+        try {
+            Yii::$app->db->createCommand()->update('ai_chat_log', [
+                'feedback'      => $value,
+                'feedback_note' => $note ?: null,
+            ], ['id' => $logId])->execute();
+        } catch (\Exception) {
+            return $this->asJson(['ok' => false]);
+        }
+
+        return $this->asJson(['ok' => true]);
     }
 
     // -----------------------------------------------------------------------
@@ -380,6 +484,36 @@ REGOLE FONDAMENTALI:
             return Yii::$app->db->createCommand($query)->queryAll();
         } catch (\Exception $e) {
             return ['error' => $e->getMessage()];
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Logging: scrive un record in ai_chat_log e restituisce l'id
+    // -----------------------------------------------------------------------
+
+    private function log(
+        string  $userQuery,
+        string  $actionType,
+        ?string $sqlQuery,
+        ?string $mapAction,
+        ?int    $rowCount,
+        bool    $responseOk,
+        int     $responseMs
+    ): int {
+        try {
+            Yii::$app->db->createCommand()->insert('ai_chat_log', [
+                'user_query'  => $userQuery,
+                'action_type' => $actionType,
+                'sql_query'   => $sqlQuery,
+                'map_action'  => $mapAction,
+                'row_count'   => $rowCount,
+                'response_ok' => $responseOk ? 1 : 0,
+                'model_name'  => $this->ollamaModel,
+                'response_ms' => $responseMs,
+            ])->execute();
+            return (int)Yii::$app->db->getLastInsertID();
+        } catch (\Exception) {
+            return 0;
         }
     }
 
