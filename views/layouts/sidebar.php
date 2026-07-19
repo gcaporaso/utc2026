@@ -207,31 +207,29 @@ use yii\helpers\Html;
                     </li>
                   </ul> -->
                 </li>
-                <!-- <li class="nav-item">
+                <li class="nav-item">
                   <a href="#" class="nav-link">
-                    <i class="nav-icon fas fa-comment text-warning"></i>
+                    <i class="nav-icon fas fa-robot text-warning"></i>
                     <p>
-                      AI-CHAT
+                      AI CHAT
                       <i class="right fas fa-angle-left"></i>
                     </p>
                   </a>
-                  <ul class="nav nav-treeview">
-                    <li class="nav-item  pl-1">
-                      <a href="<?php // Url::to(['/chat/qchat']) ?>" class="nav-link">
-                        <i class="nav-icon fas fa-solid fa-server text-info"></i>
-                        <p>info da Archivio</p>
+                  <ul class="nav nav-treeview nav-child-indent">
+                    <li class="nav-item pl-1">
+                      <a href="<?= Url::to(['/chat/qchat']) ?>" class="nav-link">
+                        <i class="nav-icon fas fa-comments text-info"></i>
+                        <p>Interroga Archivio</p>
+                      </a>
+                    </li>
+                    <li class="nav-item pl-1">
+                      <a href="<?= Url::to(['/chat/log']) ?>" class="nav-link">
+                        <i class="nav-icon fas fa-chart-bar text-info"></i>
+                        <p>Log &amp; Analisi</p>
                       </a>
                     </li>
                   </ul>
-                  <ul class="nav nav-treeview">
-                    <li class="nav-item  pl-1">
-                      <a href="<?php // Url::to(['/chat/aichat']) ?>" class="nav-link">
-                        <i class="nav-icon fas fa-comments text-info"></i>
-                        <p>Chat UTC</p>
-                      </a>
-                    </li>
-                  </ul>  
-                </li> -->
+                </li>
                 
                 <li class="nav-item">
                   <a href="#" class="nav-link">
