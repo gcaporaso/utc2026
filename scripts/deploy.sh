@@ -144,8 +144,10 @@ ssh "$PROD_HOST" "
     printf '[client]\npassword=%s\n' \"\$DB_PASS\" > \"\$OPTFILE\"
     chmod 600 \"\$OPTFILE\"
     mysql --defaults-extra-file=\"\$OPTFILE\" -h \"\$DB_HOST\" -u \"\$DB_USER\" \"\$DB_NAME\" < scripts/migrate_gis.sql
-    rm -f \"\$OPTFILE\"
     echo '      Tabelle GIS create/verificate'
+    mysql --defaults-extra-file=\"\$OPTFILE\" -h \"\$DB_HOST\" -u \"\$DB_USER\" \"\$DB_NAME\" < scripts/migrate_imu.sql
+    rm -f \"\$OPTFILE\"
+    echo '      Tabelle IMU create/verificate (con aliquote/coefficienti/aree edificabili gia delib.)'
 "
 echo "      OK"
 
