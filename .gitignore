@@ -35,3 +35,6 @@ tests/_support/_generated
 # File di configurazione specifici per ambiente (non sovrascrivere in deploy)
 /config/db.php
 mcp_server.log
+
+# PDF F24/IMU generati: contengono dati fiscali reali dei contribuenti
+/web/imu/*.pdf
