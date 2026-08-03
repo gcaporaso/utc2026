@@ -256,6 +256,35 @@ use yii\helpers\Html;
                 </li>
                 <li class="nav-item">
                   <a href="#" class="nav-link">
+                    <i class="nav-icon fas fa-landmark text-warning"></i>
+                    <p>
+                      IMU
+                      <i class="right fas fa-angle-left"></i>
+                    </p>
+                  </a>
+                  <ul class="nav nav-treeview nav-child-indent">
+                    <li class="nav-item pl-1">
+                      <a href="<?= Url::to(['/imu/calcolo']) ?>" class="nav-link">
+                        <i class="nav-icon fas fa-calculator text-info"></i>
+                        <p>Calcolo</p>
+                      </a>
+                    </li>
+                    <li class="nav-item pl-1">
+                      <a href="<?= Url::to(['/imu/index']) ?>" class="nav-link">
+                        <i class="nav-icon fas fa-percent text-info"></i>
+                        <p>Aliquote</p>
+                      </a>
+                    </li>
+                    <li class="nav-item pl-1">
+                      <a href="<?= Url::to(['/imu/aree-edificabili']) ?>" class="nav-link">
+                        <i class="nav-icon fas fa-map-marked-alt text-info"></i>
+                        <p>Aree Edificabili</p>
+                      </a>
+                    </li>
+                  </ul>
+                </li>
+                <li class="nav-item">
+                  <a href="#" class="nav-link">
                     <i class="nav-icon fas fa-cog text-warning"></i>
                     <p>
                       UTILITA

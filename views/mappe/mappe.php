@@ -11,6 +11,7 @@ var MAP_PATH = "<?php echo Yii::$app->request->baseUrl; ?>/views/";
 var GOOGLE_MAPS_KEY = "<?php echo Yii::$app->params['googleMapsKey'] ?? ''; ?>";
 var CTR2020_BASE_URL = "<?php echo Yii::$app->request->baseUrl; ?>/ctr2020geojson";
 var MINOSX_PROXY_URL = "<?php echo \yii\helpers\Url::to(['mappe/minosx-lamps']); ?>";
+var AI_ROBOT_IMG = "<?php echo Yii::$app->request->baseUrl; ?>/img/AI_Robot.png";
 </script>
 
 <?php
@@ -80,6 +81,7 @@ $this->registerJsFile('mappe/b542/acquedotto-grieci.js');
 $this->registerJsFile('mappe/js/ptp_style.js');
 $this->registerJsFile('mappe/js/ctr2020.js');
 $this->registerJsFile('mappe/js/minosx.js');
+$this->registerJsFile('js/aiutils.js', ['depends' => [\yii\web\JqueryAsset::class]]);
 //$this->registerJsFile('mappe/b542/layers.js');
 //$this->registerJsFile('mappe/b542/stili.js');
 //$this->registerJsFile('mappe/b542/cerca_particelle.js');
@@ -273,9 +275,69 @@ $this->registerJs("
         \$('#coords-toast').toast('show');
     });
 
+    // ── AI Chat sidebar init ─────────────────────────────────────────────────
+    var aiKnownLayers = {
+        'piano_regolatore_generale': typeof piano_regolatore_generale !== 'undefined' ? piano_regolatore_generale : null,
+        'vincoli_idrografici':       typeof vincoli_idrografici       !== 'undefined' ? vincoli_idrografici       : null,
+        'piano_frane':               typeof piano_frane               !== 'undefined' ? piano_frane               : null,
+        'piano_territoriale_paesistico': typeof piano_territoriale_paesistico !== 'undefined' ? piano_territoriale_paesistico : null,
+        'perimetro_comunale':        typeof perimetro_comunale        !== 'undefined' ? perimetro_comunale        : null,
+        'borghi_agricoli':           typeof borghi_agricoli           !== 'undefined' ? borghi_agricoli           : null,
+    };
+    // pick up cadastral foglio layers (01–12)
+    for (var _fi = 1; _fi <= 12; _fi++) {
+        var _fn = 'foglio' + String(_fi).padStart(2, '0') + '_Particelle';
+        if (typeof window[_fn] !== 'undefined') aiKnownLayers[_fn] = window[_fn];
+    }
+    initAiChat(map, aiKnownLayers, cartella);
+
+    // ── Controllo Leaflet AI Chat ─────────────────────────────────────────
+    L.Control.AiChat = L.Control.extend({
+        options: { position: 'bottomright' },
+        onAdd: function() {
+            var btn = L.DomUtil.create('div', 'ai-chat-leaflet-btn');
+            var img = L.DomUtil.create('img', '', btn);
+            img.src = AI_ROBOT_IMG;
+            img.alt = '';
+            L.DomEvent.disableClickPropagation(btn);
+            L.DomEvent.on(btn, 'click', function() { toggleAiSidebar(); });
+            return btn;
+        }
+    });
+    new L.Control.AiChat().addTo(map);
+
 ", yii\web\View::POS_LOAD);
 
 
+
+$this->registerJs(<<<JS
+// ── AI Chat sidebar (Chat 2) ─────────────────────────────────────────────
+if (typeof setAiContainerIds === 'function') {
+    setAiContainerIds('ai-chatbody', 'ai-msguser');
+}
+
+// Ollama status badge in sidebar
+\$.ajax({ url: 'index.php?r=chat/status', type: 'GET', timeout: 3000 })
+    .done(function(r) {
+        var b = document.getElementById('ai-ollama-status');
+        if (r && r.ok) {
+            b.className = 'badge badge-success ml-2';
+            b.textContent = 'Ollama OK';
+        } else {
+            b.className = 'badge badge-warning ml-2';
+            b.textContent = 'Ollama ?';
+        }
+    })
+    .fail(function() {
+        var b = document.getElementById('ai-ollama-status');
+        b.className = 'badge badge-danger ml-2';
+        b.textContent = 'Ollama offline';
+    });
+
+document.getElementById('ai-msguser').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') window.aiMapRequest();
+});
+JS, \yii\web\View::POS_READY);
 
 // MAPPE BASE google
 //$this->registerJsFile('js/googlemap.js',['position' => \yii\web\View::POS_HEAD]);
@@ -291,6 +353,86 @@ array_walk_recursive($pratiche, function (&$item) {
 
 ?>
 <style type="text/css">
+/* ── AI Chat sidebar ────────────────────────────────────────────────────── */
+.ai-chat-leaflet-btn {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    cursor: pointer;
+    padding: 2px;
+    transition: transform 0.2s;
+}
+.ai-chat-leaflet-btn:hover { transform: scale(1.12); }
+.ai-chat-leaflet-btn img {
+    width: 56px;
+    height: 56px;
+    object-fit: contain;
+    display: block;
+}
+
+#map-chat-wrapper {
+    display: flex;
+    width: 100%;
+    height: 91vh;
+}
+#mapid {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    transition: flex 0.3s ease;
+}
+#ai-chat-sidebar {
+    width: 0;
+    flex-shrink: 0;
+    overflow: hidden;
+    background: #fff;
+    box-shadow: -3px 0 10px rgba(0,0,0,0.2);
+    display: flex;
+    flex-direction: column;
+    transition: width 0.3s ease;
+}
+#ai-chat-sidebar.open { width: 360px; }
+
+.ai-sidebar-header {
+    background: #343a40;
+    color: #fff;
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+}
+.ai-sidebar-header span { font-weight: 600; font-size: 14px; }
+.ai-sidebar-header button {
+    background: none;
+    border: none;
+    color: #adb5bd;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+}
+.ai-sidebar-header button:hover { color: #fff; }
+
+#ai-chatbody {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 10px;
+    background: #f4f6f9;
+}
+/* reuse direct-chat styles from AdminLTE */
+#ai-chatbody .direct-chat-messages { height: auto; }
+
+.ai-sidebar-footer {
+    padding: 8px 10px;
+    background: #fff;
+    border-top: 1px solid #dee2e6;
+    flex-shrink: 0;
+}
+.ai-sidebar-footer .input-group input { font-size: 13px; }
+#ai-ollama-status { font-size: 11px; }
+
 /* Tooltip pali pubblica illuminazione */
 .minosx-tooltip {
     color: #cc0000;
@@ -432,14 +574,113 @@ array_walk_recursive($pratiche, function (&$item) {
     <div>Preparazione stampa in corso&hellip;</div>
 </div>
 
-<!--<div style="height:100vh;margin-top:0">-->
-    <div id="mapid" style="width:100%;height:91vh;z-index:0;">
+<div id="map-chat-wrapper">
+    <div id="mapid"></div>
 
-    
-    
-    
+<script>
+function toggleAiSidebar() {
+    var sidebar = document.getElementById('ai-chat-sidebar');
+    if (!sidebar) return;
+    var isOpen = sidebar.classList.contains('open');
+    sidebar.classList.toggle('open', !isOpen);
+    setTimeout(function() {
+        if (window.map && map.invalidateSize) map.invalidateSize();
+        if (!isOpen) {
+            var inp = document.getElementById('ai-msguser');
+            if (inp) inp.focus();
+        }
+    }, 320);
+}
+function aiMapRequest() {
+    var msginp = document.getElementById('ai-msguser');
+    if (!msginp) return;
+    var msg = msginp.value.trim();
+    if (!msg) return;
+    if (typeof addusrmsg  === 'function') addusrmsg(msg, 'Utente');
+    if (typeof showTyping === 'function') showTyping();
+    msginp.value = '';
+    $.ajax({
+        url:      'index.php?r=chat/chat',
+        type:     'POST',
+        dataType: 'json',
+        data:     { msguser: msg, mode: 'map' },
+    }).done(function(result) {
+        if (typeof hideTyping === 'function') hideTyping();
+        if (result.error) {
+            if (typeof addassmsg === 'function') addassmsg('Errore: ' + result.error, {});
+            return;
+        }
+        var actionLabel = '';
+        if (result.map_action && result.map_action.action) {
+            var labels = {
+                zoom_foglio:          'Zoom al foglio',
+                zoom_particella:      'Zoom alla particella',
+                highlight_particelle: 'Particelle evidenziate',
+                highlight_edilizia:   'Pratiche mostrate sulla mappa',
+                show_layer:           'Layer attivato',
+                hide_layer:           'Layer disattivato',
+                reset_map:            'Mappa reimpostata',
+            };
+            actionLabel = labels[result.map_action.action] || result.map_action.action;
+        }
+        if (typeof addassmsg === 'function') {
+            addassmsg(result.response || actionLabel || 'Azione eseguita.', {
+                map_action: result.map_action || null,
+                pdf_url:    result.pdf_url    || null,
+                f24_url:    result.f24_url    || null,
+                count:      result.count      !== undefined ? result.count : null,
+                log_id:     result.log_id     || 0,
+            });
+        }
+        if (result.map_action && typeof handleMapAction === 'function') {
+            handleMapAction(result.map_action);
+        }
+        if (result.catasto_parcelle && typeof highlightCatastoResult === 'function') {
+            highlightCatastoResult(result.catasto_parcelle);
+        }
+    }).fail(function(xhr, status, error) {
+        if (typeof hideTyping  === 'function') hideTyping();
+        if (typeof addassmsg   === 'function') addassmsg('Errore di rete: ' + error, {});
+    });
+}
+</script>
+
+<!-- ── AI Chat right sidebar ──────────────────────────────────────────── -->
+<div id="ai-chat-sidebar">
+    <div class="ai-sidebar-header">
+        <span><i class="fas fa-robot mr-1"></i> AI Assistente Mappa</span>
+        <span id="ai-ollama-status" class="badge badge-secondary ml-2">Ollama</span>
+        <button onclick="toggleAiSidebar()" title="Chiudi">&times;</button>
     </div>
-    
+
+    <div id="ai-chatbody" class="direct-chat-messages">
+        <div class="direct-chat-msg">
+            <div class="direct-chat-infos clearfix">
+                <span class="direct-chat-name float-left">AI-UTC-BIM</span>
+                <span class="direct-chat-timestamp float-right"><?= date('d/m/Y H:i') ?></span>
+            </div>
+            <img class="direct-chat-img" src="<?= Yii::$app->request->baseUrl ?>/img/AI-uman.png" alt="AI">
+            <div class="direct-chat-text" style="font-size:12px">
+                Ciao! Sono il tuo assistente per la mappa.<br>
+                Posso evidenziare particelle, mostrare/nascondere layer e zoomare su aree specifiche.<br>
+                <small class="text-muted">Es: "Evidenzia foglio 5", "Mostra il piano regolatore", "Zoom sulla particella 42 foglio 3"</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="ai-sidebar-footer">
+        <div class="input-group input-group-sm">
+            <input id="ai-msguser" type="text" placeholder="Parla con la mappa…" class="form-control" autocomplete="off">
+            <span class="input-group-append">
+                <button type="button" onclick="aiMapRequest()" class="btn btn-dark">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </span>
+        </div>
+    </div>
+</div>
+</div><!-- /map-chat-wrapper -->
+
         <div class="modal" tabindex="-1" role="dialog" id="modal-terreni" aria-labelledby="modal2Title">
            <div class="modal-dialog modal-xl" role="document">
               <div class="modal-content">

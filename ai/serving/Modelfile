@@ -7,17 +7,17 @@
 #   Cambia FROM con: FROM mistral:7b-instruct
 #   e crea il modello con lo stesso comando.
 
-# Percorso al modello fuso (relativo a dove esegui "ollama create")
-FROM ./utcbim-merged
+# Base: qwen2.5:1.5b (≈1 GB — veloce su CPU, context 2048 sufficiente per il task)
+# Dopo il fine-tuning sostituire con: FROM ./utcbim-merged
+FROM qwen2.5:1.5b
 
 # Parametri di generazione
 PARAMETER temperature 0.1
 PARAMETER top_p 0.9
 PARAMETER top_k 40
-PARAMETER num_predict 512
+PARAMETER num_ctx 2048
+PARAMETER num_predict 256
 PARAMETER stop "<|im_end|>"
-PARAMETER stop "</s>"
-PARAMETER stop "[/INST]"
 
 # System prompt embeddato nel modello
 SYSTEM """Sei l'assistente AI per il sistema UTC-BIM del Comune di Campoli del Monte Taburno.

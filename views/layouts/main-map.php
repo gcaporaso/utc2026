@@ -49,6 +49,7 @@ $publishedRes = Yii::$app->assetManager->publish('@vendor/hail812/yii2-adminlte3
 <!--        <title><?php //Html::encode($this->title) ?></title>-->
         <?php $this->head() ?>
         <?= Html::csrfMetaTags() ?>
+        <script>window.UTCBIM_BASE="<?= Yii::$app->request->baseUrl ?>";</script>
     </head>
     <body class="hold-transition skin-blue sidebar-collapse sidebar-mini" style="height:100%;margin:0!important;padding:0!important">
     <?php $this->beginBody() ?>

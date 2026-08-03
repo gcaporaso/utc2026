@@ -29,6 +29,7 @@ use yii\helpers\Html;
     <?= Html::csrfMetaTags() ?>
     <title><?= Html::encode($this->title) ?></title>
     <?php $this->head() ?>
+    <script>window.UTCBIM_BASE="<?= Yii::$app->request->baseUrl ?>";</script>
 </head>
 <body class="hold-transition sidebar-mini sidebar-collapse">
 <?php $this->beginBody() ?>
