@@ -55,7 +55,16 @@ jQuery(function($) {
                         //alert(result.errmsg);
                         //map.setView(new L.LatLng(obj.coords[1], obj.coords[0]), 20);
                         map.setView(new L.LatLng(result.Latitudine, result.Longitudine), 20);
-                        //document.getElementById('_messaggio').innerHTML = ''; 
+                        //document.getElementById('_messaggio').innerHTML = '';
+
+                        // Evidenzia in rosso il confine della particella (se la pagina
+                        // espone la cartografia vettoriale versionata, come mappe.php).
+                        if (typeof CARTELLA_CATASTALE !== 'undefined' && typeof evidenziaParticelleSoggetto === 'function') {
+                            evidenziaParticelleSoggetto([{
+                                foglio: $('#particella-foglio').val(),
+                                numero: $('#particella-particella').val()
+                            }]);
+                        }
                     }
                     
                     // Particella

@@ -67,6 +67,7 @@ class MapAsset extends AssetBundle
         //'mappe/js/catastali_vettoriali.js',
         
         'mappe/js/cerca_particelle.js',
+        'mappe/js/cerca_soggetto.js',
         'mappe/js/popup.js',
         'mappe/js/controlli.js?v=2',
         'mappe/js/pratiche_edilizie.js?v=5',

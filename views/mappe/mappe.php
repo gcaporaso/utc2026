@@ -11,6 +11,10 @@ var MAP_PATH = "<?php echo Yii::$app->request->baseUrl; ?>/views/";
 var GOOGLE_MAPS_KEY = "<?php echo Yii::$app->params['googleMapsKey'] ?? ''; ?>";
 var CTR2020_BASE_URL = "<?php echo Yii::$app->request->baseUrl; ?>/ctr2020geojson";
 var MINOSX_PROXY_URL = "<?php echo \yii\helpers\Url::to(['mappe/minosx-lamps']); ?>";
+// Cartella dei GeoJSON catastali versionati (vedi anche 'cartella' locale a layer_catastali()):
+// esposta qui a livello di pagina perché 'var cartella' dentro il registerJs di POS_LOAD
+// è racchiusa nella funzione jQuery(window).on('load', ...) e non è quindi globale.
+var CARTELLA_CATASTALE = <?= json_encode($cartellaMappe) ?>;
 </script>
 
 <?php
@@ -426,6 +430,20 @@ array_walk_recursive($pratiche, function (&$item) {
     <div class="toast-body" id="coords-toast-body" style="font-size:13px;background:#fff;"></div>
 </div>
 
+<!-- Toast ricerca soggetto catastale -->
+<div id="soggetto-toast" class="toast" role="alert" aria-live="assertive" aria-atomic="true"
+     data-delay="4000"
+     style="position:fixed;bottom:60px;right:20px;z-index:99999;min-width:260px;box-shadow:0 4px 12px rgba(0,0,0,0.25);">
+    <div class="toast-header" style="background:#2980b9;color:#fff;">
+        <i class="fas fa-user-tag mr-2"></i>
+        <strong class="mr-auto">Ricerca catastale</strong>
+        <button type="button" class="ml-2 close" data-dismiss="toast" style="color:#fff;opacity:1;" aria-label="Chiudi">
+            <span aria-hidden="true">&times;</span>
+        </button>
+    </div>
+    <div class="toast-body" id="soggetto-toast-body" style="font-size:13px;background:#fff;"></div>
+</div>
+
 <!-- Overlay attesa caricamento tile -->
 <div id="print-waiting-overlay">
     <div><i class="fas fa-spinner fa-spin fa-2x mb-2"></i></div>
@@ -604,6 +622,28 @@ array_walk_recursive($pratiche, function (&$item) {
         style="margin-top:2px;margin-left:4px;width:30px;height:30px;padding:0;"
         title="Vai alle coordinate (WGS84)" onclick="goToCoords(); return false;">
         <i class="fas fa-crosshairs fa-sm"></i>
+    </button>
+</div>
+<!-- ── Separatore inciso ─────────────────────────────────────────────────── -->
+<div style="display:inline-block;width:2px;height:30px;border-left:1px solid #aaa;border-right:1px solid #fff;margin:0 10px;vertical-align:middle;"></div>
+<!-- ── Ricerca soggetto catastale ─────────────────────────────────────────── -->
+<div style="display:inline-block;margin-left:0;margin-top:5px;">
+    <input type="text" id="input-soggetto" placeholder="Cognome/Denominazione"
+        title="Cognome (persona fisica) o denominazione (ente/società)"
+        style="width:170px;height:30px;margin-top:5px;margin-left:5px;padding:0 6px;font-size:12px;border:1px solid #ccc;border-radius:3px;" />
+    <input type="text" id="input-nome" placeholder="Nome"
+        title="Nome (solo persona fisica)"
+        style="width:110px;height:30px;margin-top:5px;margin-left:5px;padding:0 6px;font-size:12px;border:1px solid #ccc;border-radius:3px;" />
+    <input type="text" id="input-cf" placeholder="Codice Fiscale"
+        title="Codice Fiscale"
+        style="width:130px;height:30px;margin-top:5px;margin-left:5px;padding:0 6px;font-size:12px;border:1px solid #ccc;border-radius:3px;" />
+    <input type="text" id="input-data-nascita" placeholder="Data nascita"
+        title="Data di nascita (gg/mm/aaaa)"
+        style="width:100px;height:30px;margin-top:5px;margin-left:5px;padding:0 6px;font-size:12px;border:1px solid #ccc;border-radius:3px;" />
+    <button id="btn-cerca-soggetto" class="btn btn-primary"
+        style="margin-top:2px;margin-left:4px;width:30px;height:30px;padding:0;"
+        title="Cerca ed evidenzia le particelle intestate" onclick="cercaSoggettoCatasto(); return false;">
+        <i class="fas fa-user-tag fa-sm"></i>
     </button>
 </div>
 <!-- ── Separatore inciso ─────────────────────────────────────────────────── -->

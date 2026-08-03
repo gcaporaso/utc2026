@@ -99,7 +99,7 @@ $this->registerJs(
       <!-- Tabella immobili -->
       <div class="card card-primary">
         <div class="card-header">
-          <h3 class="card-title"><i class="fas fa-building"></i> Fabbricati catastali</h3>
+          <h3 class="card-title"><i class="fas fa-building"></i> Immobili censiti in catasto</h3>
           <div class="card-tools">
             <small class="text-light">Imposta tipo utilizzo, mesi e condizioni per ogni unità</small>
           </div>

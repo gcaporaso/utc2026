@@ -533,9 +533,257 @@ public function EsisteParticella($foglio,$particella)
             $centro = $rpc->centroid();
            return ['ok'=>0, 'errmsg'=>'Nessun errore', 'Latitudine'=>$centro->gety(),'Longitudine'=>$centro->getx()];
         }
-    
+
 }
-    
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // AJAX: ricerca soggetto (persona fisica o giuridica) nel catasto e
+    // restituzione delle particelle/unità intestate, per l'evidenziazione
+    // sulla mappa (barra di ricerca sotto la mappa).
+    // ─────────────────────────────────────────────────────────────────────────
+
+    public function actionCercaSoggetto(): Response
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+
+        $soggetto = strtoupper(trim(Yii::$app->request->post('soggetto', '')));
+        $nome     = strtoupper(trim(Yii::$app->request->post('nome', '')));
+        $codFisc  = strtoupper(trim(Yii::$app->request->post('codice_fiscale', '')));
+        $dataNasc = trim(Yii::$app->request->post('data_nascita', ''));
+
+        if ($soggetto === '' && $codFisc === '') {
+            return $this->asJson(['ok' => false, 'error' => 'Inserire almeno Cognome/Denominazione o Codice Fiscale.']);
+        }
+
+        [$dbPath] = $this->getCatastoDbInfo();
+        if (!$dbPath || !file_exists($dbPath)) {
+            return $this->asJson(['ok' => false, 'error' => 'Database catasto non trovato. Aggiornare i dati censuari.']);
+        }
+
+        try {
+            $db = new SQLite3($dbPath, SQLITE3_OPEN_READONLY);
+        } catch (\Exception $e) {
+            return $this->asJson(['ok' => false, 'error' => 'Impossibile aprire il database catasto: ' . $e->getMessage()]);
+        }
+
+        // Converte GG/MM/AAAA -> AAAA-MM-GG (formato usato nel DB)
+        if ($dataNasc && preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/', $dataNasc, $m)) {
+            $dataNasc = $m[3] . '-' . str_pad($m[2], 2, '0', STR_PAD_LEFT) . '-' . str_pad($m[1], 2, '0', STR_PAD_LEFT);
+        }
+
+        // La ricerca in PERSONA_GIURIDICA (denominazione) ha senso solo quando il termine è
+        // ambiguo (nessun altro dato identificativo di persona fisica è stato fornito).
+        // Se l'utente ha indicato Nome, Codice Fiscale o Data di nascita sta chiaramente
+        // cercando una persona fisica specifica: includere comunque gli enti/società il
+        // cui nome contiene lo stesso testo mescolerebbe immobili di soggetti diversi.
+        $cercaGiuridica = $soggetto !== '' && $nome === '' && $codFisc === '' && $dataNasc === '';
+
+        // --- Catasto Terreni (PARTICELLA) ---
+        $parcelle = $this->queryTerreniSoggetto($db, $soggetto, $nome, $codFisc, $dataNasc);
+        if (empty($parcelle) && $dataNasc) {
+            $parcelle = $this->queryTerreniSoggetto($db, $soggetto, $nome, $codFisc, '');
+        }
+        if ($cercaGiuridica) {
+            $parcelle = $this->mergeUnitaSoggetto($parcelle, $this->queryTerreniGiuridicaSoggetto($db, $soggetto));
+        }
+
+        // --- Catasto Fabbricati (IDENTIFICATIVI_IMMOBILIARI) ---
+        $fabbricati = [];
+        try {
+            $fabbricati = $this->queryFabbricatiSoggetto($db, $soggetto, $nome, $codFisc, $dataNasc);
+            if (empty($fabbricati) && $dataNasc) {
+                $fabbricati = $this->queryFabbricatiSoggetto($db, $soggetto, $nome, $codFisc, '');
+            }
+            if ($cercaGiuridica) {
+                $fabbricati = $this->mergeUnitaSoggetto($fabbricati, $this->queryFabbricatiGiuridicaSoggetto($db, $soggetto));
+            }
+        } catch (\Exception) {
+            // IDENTIFICATIVI_IMMOBILIARI non presente nel DB → catasto fabbricati non disponibile
+        }
+
+        $db->close();
+
+        if (empty($parcelle) && empty($fabbricati)) {
+            $label = $soggetto ?: $codFisc;
+            return $this->asJson(['ok' => false, 'error' => 'Nessuna unità catastale trovata intestata a ' . $label . '.']);
+        }
+
+        $tutte = $this->mergeUnitaSoggetto($parcelle, $fabbricati);
+        $label = $tutte[0]['label'] ?? ($soggetto ?: $codFisc);
+
+        return $this->asJson([
+            'ok'       => true,
+            'label'    => $label,
+            'count'    => count($tutte),
+            'parcelle' => array_map(fn($p) => ['foglio' => $p['foglio'], 'numero' => $p['numero']], $tutte),
+        ]);
+    }
+
+    /** Restituisce [percorso SQLite, codice Comune (es. 'B542')] del catasto più recente. */
+    private function getCatastoDbInfo(): array
+    {
+        $ultimoDb = DatiCensuari::find()->orderBy(['dataCensuari' => SORT_DESC])->one();
+        if (!$ultimoDb) {
+            return [Yii::getAlias('@webroot') . '/mappe/b542/catasto.db', 'B542'];
+        }
+        $dbPath    = Yii::getAlias('@webroot') . '/' . $ultimoDb->file_path_database;
+        $codComune = '';
+        if (preg_match('|/([a-zA-Z]\d{3})/|', $ultimoDb->file_path_database, $mc)) {
+            $codComune = strtoupper($mc[1]);
+        }
+        return [$dbPath, $codComune];
+    }
+
+    /** Cerca in PERSONA_FISICA (per CF o cognome/nome/data nascita) le particelle di Catasto Terreni. */
+    private function queryTerreniSoggetto(SQLite3 $db, string $soggetto, string $nome, string $codFisc, string $dataNasc): array
+    {
+        if ($codFisc !== '') {
+            $cond = ['upper(trim(pf.codFiscale)) = upper(trim(:codFiscale))'];
+        } elseif ($soggetto !== '') {
+            $cond = ['upper(trim(pf.cognome)) = upper(trim(:soggetto))'];
+            if ($nome)     { $cond[] = 'upper(trim(pf.nome)) LIKE upper(trim(:nome))'; }
+            if ($dataNasc) { $cond[] = 'pf.dataNascita = :dataNascita'; }
+        } else {
+            return [];
+        }
+
+        $sql = 'SELECT p.foglio, p.numero,
+                       pf.cognome || \' \' || pf.nome AS label,
+                       CASE WHEN pf.dataNascita != "" THEN
+                           substr(pf.dataNascita,9,2)||\'/\'||substr(pf.dataNascita,6,2)||\'/\'||substr(pf.dataNascita,1,4)
+                       ELSE NULL END AS data_nasc
+                FROM PERSONA_FISICA pf
+                JOIN TITOLARITA t ON pf.idSoggetto = t.idSoggetto
+                JOIN PARTICELLA p ON t.idParticella = p.idParticella
+                WHERE ' . implode(' AND ', $cond) . '
+                ORDER BY p.foglio, p.numero LIMIT 300';
+
+        $stmt = $db->prepare($sql);
+        if (!$stmt) return [];
+        if ($codFisc !== '') {
+            $stmt->bindValue(':codFiscale', $codFisc, SQLITE3_TEXT);
+        } else {
+            $stmt->bindValue(':soggetto', $soggetto, SQLITE3_TEXT);
+            if ($nome)     { $stmt->bindValue(':nome', '%' . $nome . '%', SQLITE3_TEXT); }
+            if ($dataNasc) { $stmt->bindValue(':dataNascita', $dataNasc, SQLITE3_TEXT); }
+        }
+
+        return $this->fetchUnitaCatasto($stmt->execute());
+    }
+
+    /** Cerca in PERSONA_GIURIDICA (per denominazione) le particelle di Catasto Terreni. */
+    private function queryTerreniGiuridicaSoggetto(SQLite3 $db, string $denominazione): array
+    {
+        $sql = 'SELECT p.foglio, p.numero,
+                       pg.denominazione AS label,
+                       NULL AS data_nasc
+                FROM PERSONA_GIURIDICA pg
+                JOIN TITOLARITA t ON pg.idSoggetto = t.idSoggetto
+                JOIN PARTICELLA p ON t.idParticella = p.idParticella
+                WHERE upper(trim(pg.denominazione)) LIKE upper(trim(:denominazione))
+                ORDER BY p.foglio, p.numero LIMIT 300';
+
+        $stmt = $db->prepare($sql);
+        if (!$stmt) return [];
+        $stmt->bindValue(':denominazione', '%' . $denominazione . '%', SQLITE3_TEXT);
+
+        return $this->fetchUnitaCatasto($stmt->execute());
+    }
+
+    /** Cerca in PERSONA_FISICA (per CF o cognome/nome/data nascita) le unità di Catasto Fabbricati. */
+    private function queryFabbricatiSoggetto(SQLite3 $db, string $soggetto, string $nome, string $codFisc, string $dataNasc): array
+    {
+        if ($codFisc !== '') {
+            $cond = ['upper(trim(pf.codFiscale)) = upper(trim(:codFiscale))'];
+        } elseif ($soggetto !== '') {
+            $cond = ['upper(trim(pf.cognome)) = upper(trim(:soggetto))'];
+            if ($nome)     { $cond[] = 'upper(trim(pf.nome)) LIKE upper(trim(:nome))'; }
+            if ($dataNasc) { $cond[] = 'pf.dataNascita = :dataNascita'; }
+        } else {
+            return [];
+        }
+
+        $sql = 'SELECT ltrim(ii.foglio,\'0\') AS foglio,
+                       ltrim(ii.numero,\'0\') AS numero,
+                       pf.cognome || \' \' || pf.nome AS label,
+                       CASE WHEN pf.dataNascita != "" THEN
+                           substr(pf.dataNascita,9,2)||\'/\'||substr(pf.dataNascita,6,2)||\'/\'||substr(pf.dataNascita,1,4)
+                       ELSE NULL END AS data_nasc
+                FROM PERSONA_FISICA pf
+                JOIN TITOLARITA t ON pf.idSoggetto = t.idSoggetto
+                JOIN IDENTIFICATIVI_IMMOBILIARI ii ON t.idImmobile = ii.idImmobile
+                WHERE ' . implode(' AND ', $cond) . '
+                ORDER BY foglio, numero LIMIT 300';
+
+        $stmt = $db->prepare($sql);
+        if (!$stmt) return [];
+        if ($codFisc !== '') {
+            $stmt->bindValue(':codFiscale', $codFisc, SQLITE3_TEXT);
+        } else {
+            $stmt->bindValue(':soggetto', $soggetto, SQLITE3_TEXT);
+            if ($nome)     { $stmt->bindValue(':nome', '%' . $nome . '%', SQLITE3_TEXT); }
+            if ($dataNasc) { $stmt->bindValue(':dataNascita', $dataNasc, SQLITE3_TEXT); }
+        }
+
+        return $this->fetchUnitaCatasto($stmt->execute());
+    }
+
+    /** Cerca in PERSONA_GIURIDICA (per denominazione) le unità di Catasto Fabbricati. */
+    private function queryFabbricatiGiuridicaSoggetto(SQLite3 $db, string $denominazione): array
+    {
+        $sql = 'SELECT ltrim(ii.foglio,\'0\') AS foglio,
+                       ltrim(ii.numero,\'0\') AS numero,
+                       pg.denominazione AS label,
+                       NULL AS data_nasc
+                FROM PERSONA_GIURIDICA pg
+                JOIN TITOLARITA t ON pg.idSoggetto = t.idSoggetto
+                JOIN IDENTIFICATIVI_IMMOBILIARI ii ON t.idImmobile = ii.idImmobile
+                WHERE upper(trim(pg.denominazione)) LIKE upper(trim(:denominazione))
+                ORDER BY foglio, numero LIMIT 300';
+
+        $stmt = $db->prepare($sql);
+        if (!$stmt) return [];
+        $stmt->bindValue(':denominazione', '%' . $denominazione . '%', SQLITE3_TEXT);
+
+        return $this->fetchUnitaCatasto($stmt->execute());
+    }
+
+    /** Esegue una query di ricerca soggetto e restituisce le righe deduplicate per foglio+numero. */
+    private function fetchUnitaCatasto(\SQLite3Result $res): array
+    {
+        $seen    = [];
+        $results = [];
+        while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+            $foglio = (int)($row['foglio'] ?? 0);
+            $numero = (string)(int)($row['numero'] ?? 0);
+            $key    = $foglio . '|' . $numero;
+            if (isset($seen[$key])) { continue; }
+            $seen[$key] = true;
+            $results[] = [
+                'foglio'       => $foglio,
+                'numero'       => $numero,
+                'label'        => trim($row['label'] ?? ''),
+                'data_nascita' => $row['data_nasc'] ?? null,
+            ];
+        }
+        return $results;
+    }
+
+    /** Unisce due elenchi di unità catastali rimuovendo i duplicati per foglio+numero. */
+    private function mergeUnitaSoggetto(array $a, array $b): array
+    {
+        $seen = [];
+        $out  = [];
+        foreach (array_merge($a, $b) as $p) {
+            $key = $p['foglio'] . '|' . $p['numero'];
+            if (!isset($seen[$key])) {
+                $seen[$key] = true;
+                $out[] = $p;
+            }
+        }
+        return $out;
+    }
+
      /*
      * Definisce la destinazione urbanistica di una particella catastale
      * 
