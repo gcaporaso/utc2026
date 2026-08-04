@@ -39,6 +39,53 @@ CREATE TABLE IF NOT EXISTS `imu_aree_edificabili` (
   KEY `idx_zona` (`zona`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+CREATE TABLE IF NOT EXISTS `imu_f24_pagamenti` (
+  `id`                  INT AUTO_INCREMENT PRIMARY KEY,
+  `anno_riferimento`    SMALLINT      NOT NULL,
+  `codice_fiscale`      VARCHAR(16)   NOT NULL,
+  `codice_fiscale_orig` VARCHAR(16)   DEFAULT NULL,
+  `codice_tributo`      VARCHAR(4)    NOT NULL,
+  `tipo_imposta`        CHAR(1)       NOT NULL DEFAULT 'I',
+  `data_riscossione`    DATE          DEFAULT NULL,
+  `data_fornitura`      DATE          DEFAULT NULL,
+  `data_ripartizione`   DATE          DEFAULT NULL,
+  `importo_debito`      DECIMAL(10,2) NOT NULL DEFAULT '0.00',
+  `importo_credito`     DECIMAL(10,2) NOT NULL DEFAULT '0.00',
+  `detrazione`          DECIMAL(10,2) NOT NULL DEFAULT '0.00',
+  `acconto`             TINYINT(1)    NOT NULL DEFAULT '0',
+  `saldo`               TINYINT(1)    NOT NULL DEFAULT '0',
+  `ravvedimento`        TINYINT(1)    NOT NULL DEFAULT '0',
+  `immobili_variati`    TINYINT(1)    NOT NULL DEFAULT '0',
+  `num_fabbricati`      SMALLINT      NOT NULL DEFAULT '0',
+  `progressivo_delega`  VARCHAR(6)    DEFAULT NULL,
+  `progressivo_riga`    TINYINT       DEFAULT NULL,
+  `codice_ente_comunale` VARCHAR(4)   DEFAULT NULL,
+  `denominazione`       VARCHAR(39)   DEFAULT NULL,
+  `nome_contribuente`   VARCHAR(20)   DEFAULT NULL,
+  `sesso`               CHAR(1)       DEFAULT NULL,
+  `data_nascita`        DATE          DEFAULT NULL,
+  `comune_nascita`      VARCHAR(25)   DEFAULT NULL,
+  `provincia_nascita`   VARCHAR(2)    DEFAULT NULL,
+  `file_origine`        VARCHAR(100)  DEFAULT NULL,
+  `importato_il`        TIMESTAMP     DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY `uq_g1_record` (`codice_fiscale`, `codice_tributo`, `anno_riferimento`, `data_riscossione`, `progressivo_delega`, `progressivo_riga`),
+  KEY `idx_cf_anno`   (`codice_fiscale`, `anno_riferimento`),
+  KEY `idx_anno`      (`anno_riferimento`),
+  KEY `idx_file`      (`file_origine`(50))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Pagamenti IMU da forniture SOGEI F24';
+
+CREATE TABLE IF NOT EXISTS `imu_f24_forniture` (
+  `id`               INT AUTO_INCREMENT PRIMARY KEY,
+  `nome_file`        VARCHAR(200) NOT NULL,
+  `data_fornitura`   DATE         DEFAULT NULL,
+  `anno_riferimento` SMALLINT     DEFAULT NULL,
+  `num_record`       INT          DEFAULT '0',
+  `num_imu`          INT          DEFAULT '0',
+  `importato_il`     TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+  `note`             TEXT,
+  KEY `idx_anno` (`anno_riferimento`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Log forniture F24 SOGEI importate';
+
 -- Dati già deliberati (esportati dal database di sviluppo il 2026-08-03)
 
 INSERT IGNORE INTO `imu_aliquote` (`id`, `anno`, `tipo`, `descrizione`, `aliquota`, `detrazione`, `attiva`, `note`) VALUES
