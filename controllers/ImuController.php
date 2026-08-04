@@ -8,6 +8,8 @@ use yii\web\Response;
 use app\models\ImuAliquota;
 use app\models\ImuCoefficiente;
 use app\models\ImuAreaEdificabile;
+use app\models\ImuF24Pagamento;
+use app\models\ImuF24Fornitura;
 use app\models\DatiCensuari;
 use app\models\DatiMappe;
 use app\helpers\BelfioreHelper;
@@ -337,6 +339,29 @@ class ImuController extends Controller
             ];
         }
 
+        // Pagamenti F24 SOGEI per il contribuente — usati nel calcolo saldo
+        $pagamentiF24 = [];
+        if ($codFisc) {
+            $righeF24 = ImuF24Pagamento::find()
+                ->where(['codice_fiscale' => $codFisc, 'anno_riferimento' => $anno, 'tipo_imposta' => 'I'])
+                ->orderBy('data_riscossione')
+                ->all();
+            foreach ($righeF24 as $pf) {
+                $pagamentiF24[] = [
+                    'id'              => $pf->id,
+                    'codice_tributo'  => $pf->codice_tributo,
+                    'data_riscossione'=> $pf->data_riscossione,
+                    'importo_debito'  => (float)$pf->importo_debito,
+                    'importo_credito' => (float)$pf->importo_credito,
+                    'detrazione'      => (float)$pf->detrazione,
+                    'acconto'         => (int)$pf->acconto,
+                    'saldo'           => (int)$pf->saldo,
+                    'ravvedimento'    => (int)$pf->ravvedimento,
+                    'desc_tributo'    => ImuF24Pagamento::codiciTributo()[$pf->codice_tributo] ?? $pf->codice_tributo,
+                ];
+            }
+        }
+
         return $this->asJson([
             'ok'          => true,
             'persona'     => [
@@ -355,6 +380,7 @@ class ImuController extends Controller
             'anno'        => $anno,
             'codComune'   => $codComune,
             'tassoLegale' => self::getTassoLegale($anno),
+            'pagamentiF24' => $pagamentiF24,
         ]);
     }
 
@@ -1389,6 +1415,287 @@ HTML;
             }
         }
         return $risultati;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Gestione forniture F24 SOGEI
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /** Pagina import forniture F24. */
+    public function actionF24Import(): string
+    {
+        $this->layout = 'main';
+        $anno = (int)Yii::$app->request->get('anno', date('Y'));
+        $forniture = ImuF24Fornitura::find()->orderBy(['importato_il' => SORT_DESC])->limit(50)->all();
+        return $this->render('f24-import', compact('anno', 'forniture'));
+    }
+
+    /**
+     * AJAX POST: riceve file .RUN o .ZIP, lo analizza e salva i record G1 in imu_f24_pagamenti.
+     * Supporta upload e path locale (utile da CLI/test).
+     */
+    public function actionF24Upload(): Response
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+
+        $anno = (int)Yii::$app->request->post('anno', date('Y'));
+
+        $file = \yii\web\UploadedFile::getInstanceByName('f24file');
+        if (!$file) {
+            return $this->asJson(['ok' => false, 'error' => 'Nessun file ricevuto.']);
+        }
+
+        $ext      = strtolower($file->extension);
+        $tmpPath  = $file->tempName;
+        $nomeFile = $file->baseName . '.' . $ext;
+
+        if (!in_array($ext, ['run', 'zip', 'txt'], true)) {
+            return $this->asJson(['ok' => false, 'error' => 'Formato file non supportato. Caricare un file .RUN o .ZIP.']);
+        }
+
+        try {
+            $contenuto = $this->leggiContenutoF24($tmpPath, $ext);
+        } catch (\Exception $e) {
+            return $this->asJson(['ok' => false, 'error' => $e->getMessage()]);
+        }
+
+        [$numTot, $numImu, $dataForn, $errori] = $this->importaRecordG1($contenuto, $nomeFile, $anno);
+
+        return $this->asJson([
+            'ok'          => true,
+            'num_record'  => $numTot,
+            'num_imu'     => $numImu,
+            'data_fornitura' => $dataForn,
+            'errori'      => $errori,
+            'msg'         => "Importati {$numImu} record IMU su {$numTot} versamenti totali.",
+        ]);
+    }
+
+    /** AJAX: elenco pagamenti F24 per anno (eventualmente filtrato per CF). */
+    public function actionF24Lista(): Response
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $anno = (int)Yii::$app->request->get('anno', 0);
+        $cf   = strtoupper(trim(Yii::$app->request->get('cf', '')));
+
+        $q = ImuF24Pagamento::find()
+            ->where(['tipo_imposta' => 'I'])
+            ->orderBy('anno_riferimento DESC, data_riscossione, codice_fiscale');
+
+        // Filtra per anno solo se specificato E nessun CF (ricerca per CF mostra tutti gli anni)
+        if ($anno > 0 && !$cf) {
+            $q->andWhere(['anno_riferimento' => $anno]);
+        }
+        if ($cf) {
+            $q->andWhere(['codice_fiscale' => $cf]);
+        }
+        $rows = $q->limit(500)->all();
+
+        $out = [];
+        foreach ($rows as $r) {
+            $out[] = [
+                'id'               => $r->id,
+                'anno_riferimento' => (int)$r->anno_riferimento,
+                'codice_fiscale'   => $r->codice_fiscale,
+                'denominazione'    => trim($r->denominazione . ' ' . $r->nome_contribuente),
+                'codice_tributo'   => $r->codice_tributo,
+                'desc_tributo'     => ImuF24Pagamento::codiciTributo()[$r->codice_tributo] ?? $r->codice_tributo,
+                'data_riscossione' => $r->data_riscossione,
+                'importo_debito'   => (float)$r->importo_debito,
+                'importo_credito'  => (float)$r->importo_credito,
+                'acconto'          => (int)$r->acconto,
+                'saldo'            => (int)$r->saldo,
+                'ravvedimento'     => (int)$r->ravvedimento,
+            ];
+        }
+        return $this->asJson(['ok' => true, 'rows' => $out, 'count' => count($out)]);
+    }
+
+    /** AJAX: elimina una fornitura e tutti i suoi pagamenti. */
+    public function actionF24Delete(): Response
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $id = (int)Yii::$app->request->post('id', 0);
+        $forn = ImuF24Fornitura::findOne($id);
+        if (!$forn) {
+            return $this->asJson(['ok' => false, 'error' => 'Fornitura non trovata.']);
+        }
+        ImuF24Pagamento::deleteAll(['file_origine' => $forn->nome_file]);
+        $forn->delete();
+        return $this->asJson(['ok' => true]);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Helper privati F24
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /** Legge il contenuto grezzo del file, estraendo dallo ZIP se necessario.
+     *  Supporta ZIP con più file .RUN (concatena tutto il contenuto). */
+    private function leggiContenutoF24(string $tmpPath, string $ext): string
+    {
+        if ($ext === 'zip') {
+            $zip = new \ZipArchive();
+            if ($zip->open($tmpPath) !== true) {
+                throw new \Exception('Impossibile aprire il file ZIP.');
+            }
+            $contenuto = '';
+            for ($i = 0; $i < $zip->numFiles; $i++) {
+                $name = $zip->getNameIndex($i);
+                if (preg_match('/\.(run|txt)$/i', $name)) {
+                    $blocco = $zip->getFromIndex($i);
+                    // Assicura che ogni blocco termini con newline prima di concatenare
+                    $contenuto .= rtrim($blocco) . "\n";
+                }
+            }
+            $zip->close();
+            if ($contenuto === '') {
+                throw new \Exception('Nessun file .RUN trovato nello ZIP.');
+            }
+            return $contenuto;
+        }
+        return file_get_contents($tmpPath);
+    }
+
+    /**
+     * Analizza il contenuto testuale della fornitura SOGEI e salva i record G1 IMU.
+     * Restituisce [numTotVersamenti, numImuSalvati, dataFornitura, errori[]].
+     */
+    private function importaRecordG1(string $contenuto, string $nomeFile, int $anno): array
+    {
+        // Normalizza fine riga
+        $contenuto = str_replace(["\r\n", "\r"], "\n", $contenuto);
+        $righe     = explode("\n", $contenuto);
+
+        $numTot     = 0;
+        $numImu     = 0;
+        $dataForn   = null;
+        $errori     = [];
+        $savedCf    = [];
+
+        // Elimina eventuali pagamenti già importati da questo file
+        ImuF24Pagamento::deleteAll(['file_origine' => $nomeFile]);
+
+        $db = Yii::$app->db;
+
+        foreach ($righe as $idx => $riga) {
+            // Ogni record è esattamente 300 caratteri (più eventuale newline già rimossa)
+            if (strlen($riga) < 300) {
+                continue;
+            }
+
+            $tipoRecord = substr($riga, 0, 2);
+            if ($tipoRecord !== 'G1') {
+                continue;
+            }
+
+            $numTot++;
+
+            // Estrae i campi dal record G1 (posizioni 1-based → substr offset 0-based)
+            $rawDataForn   = substr($riga,  2,  8); // pos  3-10
+            $progDelega    = substr($riga, 30,  6); // pos 31-36
+            $progRiga      = (int)substr($riga, 36,  2); // pos 37-38
+            $cf            = trim(substr($riga, 49, 16)); // pos 50-65
+            $dataRisc      = substr($riga, 66,  8); // pos 67-74
+            $codEnteComune = trim(substr($riga, 74,  4)); // pos 75-78
+            $codTributo    = trim(substr($riga, 78,  4)); // pos 79-82
+            $rateazione    = trim(substr($riga, 83,  4)); // pos 84-87
+            $annoRif       = (int)substr($riga, 87,  4); // pos 88-91
+            $importoDeb    = (int)substr($riga, 95, 15); // pos 96-110 (centesimi)
+            $importoCred   = (int)substr($riga, 110, 15); // pos 111-125 (centesimi)
+            $ravv          = (int)substr($riga, 125, 1);  // pos 126
+            $immVar        = (int)substr($riga, 126, 1);  // pos 127
+            $flagAcconto   = (int)substr($riga, 127, 1);  // pos 128
+            $flagSaldo     = (int)substr($riga, 128, 1);  // pos 129
+            $numFabb       = (int)substr($riga, 129, 3);  // pos 130-132
+            $detrazioneRaw = (int)substr($riga, 133, 15); // pos 134-148
+            $denominazione = trim(substr($riga, 148, 39)); // pos 149-187
+            $cfOrig        = trim(substr($riga, 187, 16)); // pos 188-203
+            $nomeContr     = trim(substr($riga, 203, 20)); // pos 204-223
+            $sesso         = trim(substr($riga, 223, 1));  // pos 224
+            $dataNasc      = substr($riga, 224,  8);       // pos 225-232
+            $comuneNasc    = trim(substr($riga, 232, 25)); // pos 233-257
+            $provNasc      = trim(substr($riga, 257, 2));  // pos 258-259
+            $tipoImposta   = trim(substr($riga, 259, 1));  // pos 260
+            $dataRip       = substr($riga, 12, 8);         // pos 13-20
+
+            // Filtra solo IMU (tipo imposta 'I')
+            if ($tipoImposta !== 'I') {
+                continue;
+            }
+
+            // Valida CF
+            if (!preg_match('/^[A-Z0-9]{16}$/i', $cf)) {
+                $errori[] = "Riga " . ($idx + 1) . ": CF non valido '$cf'";
+                continue;
+            }
+
+            // Converti date yyyymmdd → yyyy-mm-dd (NULL se non valida)
+            $toDate = static function (string $d): ?string {
+                if (!preg_match('/^\d{8}$/', $d) || $d === '00000000') {
+                    return null;
+                }
+                return substr($d, 0, 4) . '-' . substr($d, 4, 2) . '-' . substr($d, 6, 2);
+            };
+
+            if (!$dataForn) {
+                $dataForn = $toDate($rawDataForn);
+            }
+
+            // Anno di riferimento: se 0 o non valido, usa $anno (anno di lavoro)
+            if ($annoRif < 2010 || $annoRif > 2100) {
+                $annoRif = $anno;
+            }
+
+            $pag = new ImuF24Pagamento();
+            $pag->anno_riferimento   = $annoRif;
+            $pag->codice_fiscale     = strtoupper($cf);
+            $pag->codice_fiscale_orig = $cfOrig ?: null;
+            $pag->codice_tributo     = $codTributo;
+            $pag->tipo_imposta       = 'I';
+            $pag->data_riscossione   = $toDate($dataRisc);
+            $pag->data_fornitura     = $toDate($rawDataForn);
+            $pag->data_ripartizione  = $toDate($dataRip);
+            $pag->importo_debito     = round($importoDeb / 100, 2);
+            $pag->importo_credito    = round($importoCred / 100, 2);
+            $pag->detrazione         = round($detrazioneRaw / 100, 2);
+            $pag->acconto            = $flagAcconto;
+            $pag->saldo              = $flagSaldo;
+            $pag->ravvedimento       = $ravv;
+            $pag->immobili_variati   = $immVar;
+            $pag->num_fabbricati     = $numFabb;
+            $pag->progressivo_delega = $progDelega ?: null;
+            $pag->progressivo_riga   = $progRiga;
+            $pag->codice_ente_comunale = $codEnteComune ?: null;
+            $pag->denominazione      = $denominazione ?: null;
+            $pag->nome_contribuente  = $nomeContr ?: null;
+            $pag->sesso              = $sesso ?: null;
+            $pag->data_nascita       = $toDate($dataNasc);
+            $pag->comune_nascita     = $comuneNasc ?: null;
+            $pag->provincia_nascita  = $provNasc ?: null;
+            $pag->file_origine       = $nomeFile;
+
+            try {
+                if ($pag->save()) {
+                    $numImu++;
+                    $savedCf[$annoRif] = true;
+                } else {
+                    $errori[] = "Riga " . ($idx + 1) . " (CF $cf): " . implode(', ', $pag->getFirstErrors());
+                }
+            } catch (\yii\db\IntegrityException $e) {
+                // Chiave univoca violata: record già presente (fornitura cumulativa) — ignorato
+            }
+        }
+
+        // Salva log fornitura
+        $forn = ImuF24Fornitura::findOne(['nome_file' => $nomeFile]) ?? new ImuF24Fornitura();
+        $forn->nome_file        = $nomeFile;
+        $forn->data_fornitura   = $dataForn;
+        $forn->anno_riferimento = $anno;
+        $forn->num_record       = $numTot;
+        $forn->num_imu          = $numImu;
+        $forn->save();
+
+        return [$numTot, $numImu, $dataForn, $errori];
     }
 
     /** Restituisce true se la sigla di zona PRG è edificabile (B, C1-C12, CI, Ct, D, H, PEEP…). */

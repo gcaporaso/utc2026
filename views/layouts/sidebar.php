@@ -283,6 +283,12 @@ use yii\helpers\Html;
                         <p>Aree Edificabili</p>
                       </a>
                     </li>
+                    <li class="nav-item pl-1">
+                      <a href="<?= Url::to(['/imu/f24-import']) ?>" class="nav-link">
+                        <i class="nav-icon fas fa-file-import text-info"></i>
+                        <p>Forniture F24</p>
+                      </a>
+                    </li>
                   </ul>
                 </li>
                 <li class="nav-item">

@@ -258,6 +258,83 @@ $this->registerJs(
         </div>
       </div>
 
+      <!-- ── Pagamenti F24 SOGEI ── -->
+      <div class="card card-outline card-primary mt-2" id="pannello-f24" style="display:none!important">
+        <div class="card-header py-2">
+          <h3 class="card-title">
+            <i class="fas fa-receipt text-primary"></i> Pagamenti F24 rilevati (SOGEI)
+          </h3>
+          <div class="card-tools">
+            <a href="<?= \yii\helpers\Url::to(['/imu/f24-import']) ?>" class="btn btn-tool btn-sm text-muted"
+               title="Gestisci forniture F24" target="_blank">
+              <i class="fas fa-cog"></i>
+            </a>
+            <button type="button" class="btn btn-tool" data-card-widget="collapse">
+              <i class="fas fa-minus"></i>
+            </button>
+          </div>
+        </div>
+        <div class="card-body py-2">
+          <p class="text-muted small mb-2" id="f24-nessun-dato" style="display:none">
+            <i class="fas fa-info-circle"></i>
+            Nessun pagamento F24 trovato per questo contribuente per l'anno selezionato.
+            <a href="<?= \yii\helpers\Url::to(['/imu/f24-import']) ?>" target="_blank">Importa fornitura</a>.
+          </p>
+          <div id="f24-dati-wrap" style="display:none">
+            <!-- Dettaglio righe F24 -->
+            <table class="table table-sm table-bordered mb-3" style="font-size:12px">
+              <thead class="thead-light">
+                <tr>
+                  <th>Cod. Tributo</th>
+                  <th>Descrizione</th>
+                  <th class="text-center">Data Risc.</th>
+                  <th class="text-center">Acconto</th>
+                  <th class="text-center">Saldo</th>
+                  <th class="text-right">Importo (€)</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-f24"></tbody>
+            </table>
+            <!-- Riepilogo dovuto / pagato / differenza -->
+            <div class="row">
+              <div class="col-md-7">
+                <table class="table table-sm table-bordered mb-0" style="font-size:13px" id="tbl-f24-riepilogo">
+                  <thead class="thead-light">
+                    <tr>
+                      <th></th>
+                      <th class="text-right">Dovuto</th>
+                      <th class="text-right">Pagato (F24)</th>
+                      <th class="text-right">Differenza</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>Acconto (giugno)</td>
+                      <td class="text-right" id="f24-r-acc-dov">—</td>
+                      <td class="text-right text-primary font-weight-bold" id="f24-r-acc-pag">—</td>
+                      <td class="text-right" id="f24-r-acc-diff">—</td>
+                    </tr>
+                    <tr id="f24-row-saldo">
+                      <td>Saldo (dicembre)</td>
+                      <td class="text-right" id="f24-r-sal-dov">—</td>
+                      <td class="text-right text-primary font-weight-bold" id="f24-r-sal-pag">—</td>
+                      <td class="text-right" id="f24-r-sal-diff">—</td>
+                    </tr>
+                    <tr class="table-secondary font-weight-bold">
+                      <td><strong>Totale annuale</strong></td>
+                      <td class="text-right" id="f24-r-tot-dov">—</td>
+                      <td class="text-right text-primary" id="f24-r-tot-pag">—</td>
+                      <td class="text-right" id="f24-r-tot-diff">—</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="col-md-5 pt-1" id="f24-note" style="font-size:12px"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div><!-- /sezione-risultati -->
   </section>
 </div>
@@ -268,7 +345,7 @@ $this->registerJs(<<<'JSINIT'
 'use strict';
 
 // ── Stato globale ──────────────────────────────────────────────────────────
-var state = { persona: {}, immobili: [], aliquote: {}, coefficienti: {}, valoriZone: {}, anno: new Date().getFullYear(), codComune: '', tassoLegale: 0, tardivo: null };
+var state = { persona: {}, immobili: [], aliquote: {}, coefficienti: {}, valoriZone: {}, anno: new Date().getFullYear(), codComune: '', tassoLegale: 0, tardivo: null, pagamentiF24: [] };
 
 // ── Elenco tipi utilizzo — FABBRICATI ────────────────────────────────────
 var TIPI_FAB = [
@@ -589,6 +666,130 @@ function aggiornaTotali() {
     document.getElementById('tot-annuale').textContent = '€ ' + fmt(totProporz);
     document.getElementById('tot-dovuta').textContent  = '€ ' + fmt(dovuta);
     document.getElementById('lbl-dovuta').innerHTML    = '<strong>' + (labels[periodo] || '') + '</strong>';
+
+    // Aggiorna saldo nel pannello F24 (i totali IMU sono appena cambiati)
+    if (state.pagamentiF24 && state.pagamentiF24.length) {
+        aggiornaPannelloF24();
+    }
+}
+
+// ── Pannello Pagamenti F24 SOGEI ─────────────────────────────────────────
+function aggiornaPannelloF24() {
+    var pannello  = document.getElementById('pannello-f24');
+    var wrapDati  = document.getElementById('f24-dati-wrap');
+    var elNessuno = document.getElementById('f24-nessun-dato');
+    var tbody     = document.getElementById('tbody-f24');
+    var elNote    = document.getElementById('f24-note');
+
+    var pags       = state.pagamentiF24 || [];
+    var annoCalc   = state.anno || new Date().getFullYear();
+    var annoCorr   = new Date().getFullYear();
+    var annoPrec   = annoCalc < annoCorr;   // anno precedente: entrambe le rate già scadute
+
+    pannello.style.removeProperty('display');
+
+    if (!pags.length) {
+        wrapDati.style.display  = 'none';
+        elNessuno.style.display = '';
+        return;
+    }
+
+    elNessuno.style.display = 'none';
+    wrapDati.style.display  = '';
+
+    // IMU annuale calcolata
+    var totAnn = 0;
+    state.immobili.forEach(function (imm) {
+        if (imm._res && !imm._res.esente) totAnn += imm._res.imuProporzionale;
+    });
+    totAnn = Math.round(totAnn * 100) / 100;
+
+    // Somme dai pagamenti F24 per tipo
+    var accPag = 0, salPag = 0;
+    pags.forEach(function (p) {
+        var netto = Math.round((p.importo_debito - p.importo_credito) * 100) / 100;
+        if (p.acconto && !p.saldo)       { accPag += netto; }
+        else if (p.saldo && !p.acconto)  { salPag += netto; }
+        else if (p.acconto && p.saldo)   { salPag += netto; } // pagamento unico = trattato come saldo
+    });
+    accPag = Math.round(accPag * 100) / 100;
+    salPag = Math.round(salPag * 100) / 100;
+
+    var accDov  = Math.round(totAnn / 2 * 100) / 100;
+    var salDov  = Math.max(0, Math.round((totAnn - accPag) * 100) / 100);
+    var totPag  = Math.round((accPag + salPag) * 100) / 100;
+    var totDov  = totAnn;
+
+    var diffAcc = Math.round((accPag - accDov) * 100) / 100;
+    var diffSal = Math.round((salPag - salDov) * 100) / 100;
+    var diffTot = Math.round((totPag - totDov) * 100) / 100;
+
+    // Colore differenza: verde se ≥ 0, rosso se < 0
+    function fmtDiff(v) {
+        var cls = v >= 0 ? 'text-success' : 'text-danger font-weight-bold';
+        return '<span class="' + cls + '">' + (v >= 0 ? '+' : '') + fmt(v) + '</span>';
+    }
+
+    // Popola tabella righe
+    tbody.innerHTML = pags.map(function (p) {
+        var netto = p.importo_debito - p.importo_credito;
+        var isAcc = p.acconto && !p.saldo;
+        var isSal = !p.acconto;
+        return '<tr>' +
+            '<td><span class="badge badge-secondary">' + p.codice_tributo + '</span></td>' +
+            '<td class="small">' + (p.desc_tributo || '') + '</td>' +
+            '<td class="text-center small">' + (p.data_riscossione || '—') + '</td>' +
+            '<td class="text-center">' + (isAcc ? '<i class="fas fa-check text-primary"></i>' : '') + '</td>' +
+            '<td class="text-center">' + (isSal ? '<i class="fas fa-check text-success"></i>' : '') + '</td>' +
+            '<td class="text-right font-weight-bold">€ ' + fmt(netto) + '</td>' +
+            '</tr>';
+    }).join('');
+
+    // Popola riepilogo
+    document.getElementById('f24-r-acc-dov').textContent  = '€ ' + fmt(accDov);
+    document.getElementById('f24-r-acc-pag').textContent  = '€ ' + fmt(accPag);
+    document.getElementById('f24-r-acc-diff').innerHTML   = fmtDiff(diffAcc);
+    document.getElementById('f24-r-tot-dov').textContent  = '€ ' + fmt(totDov);
+    document.getElementById('f24-r-tot-pag').textContent  = '€ ' + fmt(totPag);
+    document.getElementById('f24-r-tot-diff').innerHTML   = fmtDiff(diffTot);
+
+    var rowSaldo = document.getElementById('f24-row-saldo');
+    if (annoPrec) {
+        // Anno chiuso: mostra saldo pagato e differenza saldo
+        rowSaldo.style.display = '';
+        document.getElementById('f24-r-sal-dov').textContent = '€ ' + fmt(salDov);
+        document.getElementById('f24-r-sal-pag').textContent = '€ ' + fmt(salPag);
+        document.getElementById('f24-r-sal-diff').innerHTML  = fmtDiff(diffSal);
+    } else {
+        // Anno corrente: riga saldo mostra il dovuto residuo
+        rowSaldo.style.display = '';
+        document.getElementById('f24-r-sal-dov').innerHTML  = '<em>da versare:</em> <strong style="color:#c0392b">€ ' + fmt(salDov) + '</strong>';
+        document.getElementById('f24-r-sal-pag').textContent = salPag > 0 ? '€ ' + fmt(salPag) : '—';
+        document.getElementById('f24-r-sal-diff').textContent = '—';
+    }
+
+    // Note
+    var noteHtml = '';
+    if (annoPrec) {
+        if (diffTot >= 0) {
+            noteHtml = '<i class="fas fa-check-circle text-success"></i> Totale pagato <strong>in eccedenza di € ' + fmt(diffTot) + '</strong>.';
+        } else {
+            noteHtml = '<i class="fas fa-exclamation-triangle text-danger"></i> Totale non pagato: <strong>€ ' + fmt(-diffTot) + '</strong>.<br>' +
+                       'Verificare eventuale ravvedimento operoso.';
+        }
+    } else {
+        if (diffAcc >= 0) {
+            noteHtml = '<i class="fas fa-check-circle text-success"></i> Acconto versato in eccedenza di € ' + fmt(diffAcc) + '.<br>' +
+                       'Saldo residuo: <strong style="color:#c0392b">€ ' + fmt(salDov) + '</strong>.';
+        } else if (diffAcc < 0) {
+            noteHtml = '<i class="fas fa-exclamation-triangle text-warning"></i> Acconto inferiore al teorico di € ' + fmt(-diffAcc) + '.<br>' +
+                       'Saldo residuo (IMU ann. &minus; acc. eff.): <strong style="color:#c0392b">€ ' + fmt(salDov) + '</strong>.';
+        } else {
+            noteHtml = '<i class="fas fa-check-circle text-success"></i> Acconto esatto.<br>' +
+                       'Saldo da versare: <strong style="color:#c0392b">€ ' + fmt(salDov) + '</strong>.';
+        }
+    }
+    elNote.innerHTML = noteHtml;
 }
 
 // ── Raccoglie i dati per il server ────────────────────────────────────────
@@ -690,6 +891,7 @@ document.getElementById('btn-cerca').addEventListener('click', function () {
             state.anno         = r.anno;
             state.codComune    = r.codComune || '';
             state.tassoLegale  = r.tassoLegale  || 0;
+            state.pagamentiF24 = r.pagamentiF24 || [];
             state.tardivo = null;
             // preset data pagamento = oggi
             var oggi = new Date().toISOString().split('T')[0];
@@ -708,6 +910,7 @@ document.getElementById('btn-cerca').addEventListener('click', function () {
             document.getElementById('alert-docs').className = 'alert d-none';
             document.getElementById('sezione-risultati').classList.remove('d-none');
             buildTable();
+            aggiornaPannelloF24();
         })
         .catch(function (e) {
             btn.disabled = false;
