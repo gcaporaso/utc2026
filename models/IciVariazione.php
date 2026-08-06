@@ -53,22 +53,57 @@ class IciVariazione extends ActiveRecord
     }
 
     /**
-     * Calcola i mesi IMU suggeriti in base alla data e al tipo variazione.
-     * Regola: se acquisizione ≤15 del mese → conta dal mese stesso; ≥16 → dal mese dopo.
-     * Per cessione: ≥16 → conta il mese stesso; ≤15 → non conta il mese.
+     * Calcola i mesi IMU suggeriti per l'anno $annoCalc.
+     *
+     * Usa data_validita_atto come data giuridicamente efficace (es. apertura successione,
+     * data dell'atto notarile), con fallback a data_presentazione se assente.
+     *
+     * Se la data dell'atto è in un anno precedente ad $annoCalc → acquisizione già in essere
+     * dall'anno prima: mesi = 12 (pieno anno). Se è in un anno successivo → mesi = 0.
+     * Se è nello stesso anno: regola giorno ≤15 / ≥16.
      */
-    public function mesiSuggeriti(): int
+    public function mesiSuggeriti(int $annoCalc = 0): int
     {
-        if (!$this->data_presentazione) return 0;
-        $d   = new \DateTime($this->data_presentazione);
-        $m   = (int)$d->format('n');
-        $day = (int)$d->format('j');
+        // Preferisce data_validita_atto (data giuridica dell'atto) a data_presentazione (trascrizione)
+        $dataRef = ($this->data_validita_atto && $this->data_validita_atto > '0000-00-00')
+            ? $this->data_validita_atto
+            : $this->data_presentazione;
+        if (!$dataRef) return 0;
+
+        $d    = new \DateTime($dataRef);
+        $anno = (int)$d->format('Y');
+        $m    = (int)$d->format('n');
+        $day  = (int)$d->format('j');
+
+        if ($annoCalc > 0 && $anno !== $annoCalc) {
+            if ($this->tipo_variazione === 'A') {
+                return $anno < $annoCalc ? 12 : 0;
+            } else {
+                return $anno < $annoCalc ? 0 : 12;
+            }
+        }
 
         if ($this->tipo_variazione === 'A') {
             return $day <= 15 ? max(0, 13 - $m) : max(0, 12 - $m);
         } else {
             return $day >= 16 ? $m : max(0, $m - 1);
         }
+    }
+
+    /**
+     * Restituisce la quota come frazione semplificata (es. "1/2", "1/3").
+     * I valori XML sono in millesimi: ratio = numeratore/denominatore (es. 500 = 500‰ = 1/2).
+     */
+    public static function quotaFrazione(?int $num, ?int $den): string
+    {
+        if (!$num || !$den || $den === 0) return '—';
+        $ratio = $num / $den;
+        // ratio > 1 → già in millesimi (es. 500); ratio ≤ 1 → frazione propria (es. 0.5)
+        $millesimi = $ratio > 1 ? (int)round($ratio) : (int)round($ratio * 1000);
+        if ($millesimi <= 0 || $millesimi > 1000) return $num . '/' . $den;
+        $a = $millesimi; $b = 1000;
+        while ($b) { [$a, $b] = [$b, $a % $b]; }
+        return ($millesimi / $a) . '/' . (1000 / $a);
     }
 
     /** Codici diritto rilevanti per IMU (proprietà e diritti reali di godimento). */

@@ -71,6 +71,7 @@ class ImuAliquota extends ActiveRecord
             'd10_rurale'           => 'Fabbricati rurali ad uso strumentale all\'attività agricola (D/10)',
             'rurale_abc'           => 'Fabbricati rurali ad uso strumentale all\'attività agricola (Cat. A, C/2, C/6, C/7)',
             'area_fabbricabile'    => 'Aree fabbricabili',
+            'peep'                 => 'Aree PEEP - Piano di Edilizia Economica e Popolare',
             'comodato50'           => 'Abitazione concessa in comodato gratuito (tranne A/1, A/8, A/9) - riduzione 50% base imponibile',
             'comodato_noriduziome' => 'Abitazione in comodato gratuito senza riduzione imponibile',
             'iacp'                 => 'Abitazioni assegnate dagli Istituti Autonomi Case Popolari (ex IACP/ARES/ALER)',

@@ -285,8 +285,10 @@ class MappeController extends Controller
             }
         }    
     }
+    $forniture = DatiCensuari::find()->orderBy(['dataCensuari' => SORT_DESC])->all();
     return $this->render('dati-censuari', [
-        'model' => $model,
+        'model'     => $model,
+        'forniture' => $forniture,
     ]);
     }
     

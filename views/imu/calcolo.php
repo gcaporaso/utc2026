@@ -372,8 +372,9 @@ var TIPI_FAB = [
 
 // ── Elenco tipi utilizzo — AREE EDIFICABILI ───────────────────────────────
 var TIPI_AREA = [
-    { val: 'area_fabbricabile', lbl: 'Area fabbricabile',   esente: false },
-    { val: 'terreno_agricolo',  lbl: 'Terreno agricolo',    esente: true  },
+    { val: 'area_fabbricabile', lbl: 'Area fabbricabile',                              esente: false },
+    { val: 'peep',              lbl: 'Area PEEP - Piano di Edilizia Economica e Pop.', esente: false },
+    { val: 'terreno_agricolo',  lbl: 'Terreno agricolo',                               esente: true  },
 ];
 
 var RIDUZIONI = [
@@ -381,6 +382,49 @@ var RIDUZIONI = [
     { val: 'inagibile', lbl: 'Inagibile (50% base)' },
     { val: 'storico',   lbl: 'Storico (50% base)' },
 ];
+
+// ── Opzioni tipo rilevanti per categoria catastale ────────────────────────
+function tipiPerCategoria(cat) {
+    var c = (cat || '').toUpperCase().replace(/\s|\./g, '');
+
+    if (/^D\/10$|^D10$/.test(c))
+        return ['d10_rurale', 'cat_d'];
+    if (/^D\/5$|^D5$/.test(c))
+        return ['d5_credito', 'cat_d'];
+    if (/^D/.test(c))
+        return ['cat_d', 'assimilata_anziani'];
+
+    if (/^A\/10$|^A10$/.test(c))
+        return ['a10_uffici', 'assimilata_anziani', 'altra_abitazione'];
+
+    if (/^A\/(1|8|9)$|^A[189]$/.test(c))
+        return ['abpr_lusso', 'pertinenza_lusso', 'altra_abitazione',
+                'assimilata_anziani', 'comodato_noriduziome', 'iacp'];
+
+    if (/^A/.test(c))  // A/2–A/7
+        return ['abpr_std', 'altra_abitazione', 'assimilata_anziani',
+                'comodato50', 'comodato_noriduziome', 'iacp', 'rurale_abc'];
+
+    if (/^B$|^C\/(4|5)$|^C[45]$/.test(c))
+        return ['b_c4_c5', 'assimilata_anziani'];
+
+    if (/^C\/1$|^C1$/.test(c))
+        return ['c1_negozi'];
+
+    if (/^C\/2$|^C2$/.test(c))
+        return ['c2_magazzini', 'pertinenza_std', 'pertinenza_lusso', 'rurale_abc', 'assimilata_anziani'];
+
+    if (/^C\/3$|^C3$/.test(c))
+        return ['c3_laboratori', 'rurale_abc'];
+
+    if (/^C\/(6|7)$|^C[67]$/.test(c))
+        return ['c6_c7_stalle', 'pertinenza_std', 'pertinenza_lusso', 'rurale_abc', 'assimilata_anziani'];
+
+    if (/^[EF]/.test(c))
+        return ['assimilata_anziani', 'altra_abitazione'];
+
+    return TIPI_FAB.map(function (t) { return t.val; }); // categoria sconosciuta: tutte
+}
 
 // ── Default tipo in base alla categoria ────────────────────────────────────
 function defaultTipo(cat) {
@@ -420,11 +464,12 @@ function calcolaImm(rendita, cat, tipo, quotaNum, quotaDen, mesi, riduzione, tip
         if (tipo === 'terreno_agricolo') {
             return { coeff: 1, base: 0, aliquota: 0, detrazione: 0, imuProporzionale: 0, esente: true };
         }
-        // Area fabbricabile: base = valore venale inserito dall'utente (no 1,05 × coeff)
         coeff = 1;
         base  = valoreVenale || 0;
-        var aliquota = (alq['area_fabbricabile'] || alq['aree_fabbricabili'] || alq['altri_immobili'] || {}).aliquota || 0.0106;
-        var imu      = Math.max(0, base * aliquota * quota * (mesi / 12));
+        var aliquota = tipo === 'peep'
+            ? (alq['peep'] || alq['area_fabbricabile'] || alq['aree_fabbricabili'] || alq['altri_immobili'] || {}).aliquota || 0.0106
+            : (alq['area_fabbricabile'] || alq['aree_fabbricabili'] || alq['altri_immobili'] || {}).aliquota || 0.0106;
+        var imu = Math.max(0, base * aliquota * quota * (mesi / 12));
         return { coeff: 1, base: base, aliquota: aliquota, detrazione: 0,
                  imuProporzionale: imu, esente: false };
     }
@@ -502,8 +547,18 @@ function buildZonaSelect(zonaSel, idx) {
 }
 
 // ── Costruisce il select Tipo utilizzo ────────────────────────────────────
-function buildTipoSelect(tipoSel, idx, isArea) {
-    var lista = isArea ? TIPI_AREA : TIPI_FAB;
+function buildTipoSelect(tipoSel, idx, isArea, categoria) {
+    var lista;
+    if (isArea) {
+        lista = TIPI_AREA;
+    } else {
+        var validi = tipiPerCategoria(categoria);
+        // Garantisce che il valore attuale sia sempre presente anche se non nel filtro
+        if (tipoSel && validi.indexOf(tipoSel) === -1) { validi = [tipoSel].concat(validi); }
+        lista = validi.map(function (v) {
+            return TIPI_FAB.find(function (t) { return t.val === v; });
+        }).filter(Boolean);
+    }
     return '<select class="form-control form-control-sm sel-tipo" data-idx="' + idx + '" ' +
            'style="font-size:11px;width:100%">' +
            lista.map(function (t) {
@@ -588,18 +643,22 @@ function buildTable() {
             ? '<strong>AF</strong>'
             : '<strong>' + (imm.categoria || '?') + '</strong>';
 
+        var fromIci  = !!imm._fromIci;
         var tr = document.createElement('tr');
-        tr.className = res.esente ? 'table-success' : (isArea ? 'table-warning' : '');
+        tr.className = res.esente ? 'table-success' : (fromIci ? 'table-info' : (isArea ? 'table-warning' : ''));
         tr.dataset.idx = idx;
+        var foglioCell = fromIci
+            ? imm.foglio + ' <span class="badge bg-primary" style="font-size:9px" title="Immobile da variazione ICI ' + state.anno + ', non ancora nel catasto">ICI</span>'
+            : imm.foglio;
         tr.innerHTML =
-            '<td>' + imm.foglio + '</td>' +
+            '<td>' + foglioCell + '</td>' +
             '<td>' + imm.numero + '</td>' +
             '<td>' + (imm.subalterno || '—') + '</td>' +
             '<td>' + catLabel + '</td>' +
             '<td class="text-right">' + renditaCell + '</td>' +
             '<td class="text-right">' + consistCell + '</td>' +
             '<td class="text-center" style="white-space:nowrap;font-size:11px">' + quotaStr + '</td>' +
-            '<td>' + buildTipoSelect(tipoSel, idx, isArea) + '</td>' +
+            '<td>' + buildTipoSelect(tipoSel, idx, isArea, imm.categoria) + '</td>' +
             '<td class="text-center">' + buildMesiSelect(mesiSel, idx) + '</td>' +
             '<td class="text-center">' + buildRiduzSelect(riduzSel, idx) + '</td>' +
             '<td class="text-right td-coeff">' + res.coeff + '</td>' +
@@ -622,8 +681,12 @@ function buildTable() {
             var bgCls  = isAcq ? 'table-info' : 'table-warning';
             var icon   = isAcq ? 'fas fa-arrow-circle-right text-primary' : 'fas fa-arrow-circle-left text-warning';
             var label  = isAcq ? 'ACQUISITO' : 'CEDUTO';
-            var dParts = (v.data_pres || '').split('-');
-            var dFmt   = dParts.length === 3 ? dParts[2] + '/' + dParts[1] + '/' + dParts[0] : (v.data_pres || '—');
+            function fmtData(s) {
+                var p = (s || '').split('-');
+                return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : (s || '—');
+            }
+            var dFmt   = fmtData(v.data_pres);
+            var dAtto  = v.data_atto && v.data_atto !== v.data_pres ? fmtData(v.data_atto) : null;
             var mSug   = v.mesi_suggeriti || 0;
             var descDir = v.desc_diritto || v.codice_diritto || '';
             var trV = document.createElement('tr');
@@ -631,9 +694,11 @@ function buildTable() {
             trV.innerHTML =
                 '<td colspan="14" class="py-1 px-3 small">' +
                 '<i class="' + icon + ' me-1"></i>' +
-                '<strong>' + label + '</strong> il <strong>' + dFmt + '</strong>' +
+                '<strong>' + label + '</strong>' +
+                ' trascritto il <strong>' + dFmt + '</strong>' +
+                (dAtto ? ' &mdash; <span class="text-muted">atto del</span> <strong>' + dAtto + '</strong>' : '') +
                 (descDir ? ' &mdash; ' + descDir : '') +
-                (v.quota_num && v.quota_den ? ' quota ' + v.quota_num + '/' + v.quota_den : '') +
+                (v.quota_fraz && v.quota_fraz !== '—' ? ' quota <strong>' + v.quota_fraz + '</strong>' : '') +
                 ' &nbsp;|&nbsp; <span class="text-muted">Mesi suggeriti: </span>' +
                 '<strong class="' + (isAcq ? 'text-primary' : 'text-warning') + '">' + mSug + '</strong>' +
                 (mSug > 0 && mSug < 12

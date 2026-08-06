@@ -37,7 +37,7 @@ $this->title = 'Variazioni Catastali ICI/IMU';
           <button id="btnImporta" class="btn btn-primary">
             <i class="fas fa-upload me-1"></i>Importa
           </button>
-          <button id="btnStorici" class="btn btn-outline-secondary" title="Importa tutti i file ZIP in /home/giuseppe/DATI_ICI/">
+          <button id="btnStorici" class="btn btn-outline-secondary" title="Importa tutti i file ZIP in runtime/dati-ici/">
             <i class="fas fa-history me-1"></i>Importa storici
           </button>
           <span id="spinImport" class="d-none ms-1 align-self-center">
@@ -75,10 +75,12 @@ $this->title = 'Variazioni Catastali ICI/IMU';
                 <tr data-id="<?= $f->id ?>">
                   <td class="small"><code><?= \yii\helpers\Html::encode($f->nome_file) ?></code></td>
                   <td class="text-center">
-                    <?= $f->anno_mese ?: '—' ?>
-                    <?php if ($f->data_inizio && $f->data_fine): ?>
-                      <br><small class="text-muted"><?= $f->data_inizio ?> → <?= $f->data_fine ?></small>
-                    <?php endif; ?>
+                    <?php
+                      $am = $f->anno_mese ?: '';
+                      echo $am && preg_match('/^(\d{4})-(\d{2})$/', $am, $mp)
+                          ? $mp[2] . '-' . $mp[1]
+                          : ($am ?: '—');
+                    ?>
                   </td>
                   <td class="text-center"><?= $f->num_variazioni ?></td>
                   <td class="text-center"><span class="badge bg-info"><?= $f->num_soggetti ?></span></td>
@@ -212,7 +214,7 @@ $this->title = 'Variazioni Catastali ICI/IMU';
 
     // ── Importa storici ──
     btnStor.addEventListener('click', function () {
-        if (!confirm('Importare tutti i file ZIP da /home/giuseppe/DATI_ICI/ non ancora importati?\nPuò richiedere qualche minuto.')) return;
+        if (!confirm('Importare tutti i file ZIP da runtime/dati-ici/ non ancora importati?\nPuò richiedere qualche minuto.')) return;
         var fd = new FormData();
         var c = csrf();
         fd.append(c.param, c.token);

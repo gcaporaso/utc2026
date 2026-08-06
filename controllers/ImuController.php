@@ -219,6 +219,10 @@ class ImuController extends Controller
             }
         }
         ksort($zones);
+        // Zone speciali non sempre presenti nel GeoJSON PRG ma ammesse come aree edificabili
+        if (!isset($zones['PEEP'])) {
+            $zones['PEEP'] = 'PEEP — Piano di Edilizia Economica e Popolare';
+        }
         return $zones;
     }
 
@@ -277,6 +281,58 @@ class ImuController extends Controller
         // Verifica edificabilità dei terreni (usa geoPHP + PRG GeoJSON)
         $areeEdificabili = $this->checkTerreniEdificabili($terreniRaw);
         $immobili        = array_merge($immobili, $areeEdificabili);
+
+        // Aggiungi fabbricati acquisiti nell'anno di calcolo da variazioni ICI
+        // che non sono ancora presenti nel catasto (aggiornamento catastale non ancora recepito).
+        if ($codFisc && $anno) {
+            $acqIci = IciVariazione::find()
+                ->where(['codice_fiscale' => $codFisc, 'tipo_variazione' => 'A', 'tipologia_immobile' => 'F'])
+                ->andWhere(['or',
+                    ['YEAR(data_presentazione)' => $anno],
+                    ['and',
+                        ['YEAR(data_validita_atto)' => $anno],
+                        new \yii\db\Expression('YEAR(data_presentazione) >= :ay2', [':ay2' => $anno]),
+                    ],
+                ])
+                ->andWhere(['>', 'rendita', 0])
+                ->all();
+
+            if ($acqIci) {
+                $catastoKeys = [];
+                foreach ($immobili as $imm) {
+                    $catastoKeys[intval($imm['foglio']) . '|' . intval($imm['numero']) . '|' . ltrim((string)($imm['subalterno'] ?? ''), '0')] = true;
+                }
+                foreach ($acqIci as $v) {
+                    $fInt = (int)$v->foglio;
+                    $nInt = (int)$v->numero;
+                    $sStr = ltrim((string)($v->subalterno ?? ''), '0');
+                    $key  = $fInt . '|' . $nInt . '|' . $sStr;
+                    if (isset($catastoKeys[$key])) { continue; }
+                    $catastoKeys[$key] = true;
+
+                    // Quota ICI: il ratio quotaNum/quotaDen è in millesimi (es. 500 = 50%).
+                    // Normalizza a formato catasto: quotaNum/1000 dove risultato ∈ [0,1].
+                    $qn    = (int)$v->quota_numeratore;
+                    $qd    = (int)$v->quota_denominatore;
+                    $ratio = $qd > 0 ? $qn / $qd : 1000;
+                    $quotaNum = $ratio > 1 ? (int)round($ratio) : (int)round($ratio * 1000);
+                    if ($quotaNum <= 0 || $quotaNum > 1000) { $quotaNum = 1000; }
+
+                    $immobili[] = [
+                        'foglio'     => $fInt,
+                        'numero'     => (string)$nInt,
+                        'subalterno' => $sStr ?: '0',
+                        'categoria'  => $v->categoria ?? '',
+                        'rendita'    => (float)$v->rendita,
+                        'quotaNum'   => $quotaNum,
+                        'quotaDen'   => 1000,
+                        'indirizzo'  => $v->indirizzo ?? '',
+                        '_fromIci'   => true,
+                        '_mesi'      => $v->mesiSuggeriti($anno),
+                    ];
+                }
+            }
+        }
 
         if (empty($immobili)) {
             $sogg = $cognome . ($nome ? ' ' . $nome : '') . ($codFisc ? ' (CF: ' . $codFisc . ')' : '');
@@ -367,9 +423,18 @@ class ImuController extends Controller
         // Variazioni ICI/IMU per il contribuente nell'anno di calcolo
         $variazioniIci = [];
         if ($codFisc) {
+            // Variazioni rilevanti per l'anno di calcolo:
+            // - trascritte nell'anno (data_presentazione), oppure
+            // - atto dell'anno di calcolo ma trascritto successivamente (es. successioni dichiarate dopo)
             $righeIci = IciVariazione::find()
                 ->where(['codice_fiscale' => $codFisc])
-                ->andWhere(['YEAR(data_presentazione)' => $anno])
+                ->andWhere(['or',
+                    ['YEAR(data_presentazione)' => $anno],
+                    ['and',
+                        ['YEAR(data_validita_atto)' => $anno],
+                        new \yii\db\Expression('YEAR(data_presentazione) >= :ay', [':ay' => $anno]),
+                    ],
+                ])
                 ->orderBy('data_presentazione')
                 ->all();
             foreach ($righeIci as $v) {
@@ -382,6 +447,7 @@ class ImuController extends Controller
                     'desc_diritto'      => IciVariazione::descrizioniDiritto()[$v->codice_diritto] ?? $v->codice_diritto,
                     'quota_num'         => $v->quota_numeratore,
                     'quota_den'         => $v->quota_denominatore,
+                    'quota_fraz'        => IciVariazione::quotaFrazione((int)$v->quota_numeratore, (int)$v->quota_denominatore),
                     'tipologia'         => $v->tipologia_immobile,
                     'foglio'            => $v->foglio,
                     'numero'            => $v->numero,
@@ -389,7 +455,7 @@ class ImuController extends Controller
                     'categoria'         => $v->categoria,
                     'rendita'           => (float)$v->rendita,
                     'indirizzo'         => $v->indirizzo,
-                    'mesi_suggeriti'    => $v->mesiSuggeriti(),
+                    'mesi_suggeriti'    => $v->mesiSuggeriti($anno),
                 ];
             }
         }
@@ -1796,11 +1862,11 @@ HTML;
         ]);
     }
 
-    /** AJAX POST: importa tutti i file ZIP storici da /home/giuseppe/DATI_ICI/. */
+    /** AJAX POST: importa tutti i file ZIP storici da runtime/dati-ici/. */
     public function actionIciImportStorici(): Response
     {
         Yii::$app->response->format = Response::FORMAT_JSON;
-        $dir = '/home/giuseppe/DATI_ICI/';
+        $dir = \Yii::getAlias('@runtime') . '/dati-ici/';
         if (!is_dir($dir)) {
             return $this->asJson(['ok' => false, 'error' => 'Cartella storici non trovata: ' . $dir]);
         }
@@ -1910,9 +1976,8 @@ HTML;
                 'categoria'   => $v->categoria,
                 'rendita'     => (float)$v->rendita,
                 'diritto'     => IciVariazione::descrizioniDiritto()[$v->codice_diritto] ?? $v->codice_diritto,
-                'quota'       => $v->quota_numeratore && $v->quota_denominatore
-                                 ? $v->quota_numeratore . '/' . $v->quota_denominatore : '—',
-                'mesi_sug'    => $v->mesiSuggeriti(),
+                'quota'       => IciVariazione::quotaFrazione((int)$v->quota_numeratore, (int)$v->quota_denominatore),
+                'mesi_sug'    => $v->mesiSuggeriti($anno > 0 ? $anno : (int)substr((string)$v->anno_mese, 0, 4)),
             ];
         }
 
