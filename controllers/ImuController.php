@@ -10,6 +10,8 @@ use app\models\ImuCoefficiente;
 use app\models\ImuAreaEdificabile;
 use app\models\ImuF24Pagamento;
 use app\models\ImuF24Fornitura;
+use app\models\IciFornitura;
+use app\models\IciVariazione;
 use app\models\DatiCensuari;
 use app\models\DatiMappe;
 use app\helpers\BelfioreHelper;
@@ -362,6 +364,36 @@ class ImuController extends Controller
             }
         }
 
+        // Variazioni ICI/IMU per il contribuente nell'anno di calcolo
+        $variazioniIci = [];
+        if ($codFisc) {
+            $righeIci = IciVariazione::find()
+                ->where(['codice_fiscale' => $codFisc])
+                ->andWhere(['YEAR(data_presentazione)' => $anno])
+                ->orderBy('data_presentazione')
+                ->all();
+            foreach ($righeIci as $v) {
+                $variazioniIci[] = [
+                    'id'                => $v->id,
+                    'tipo'              => $v->tipo_variazione,
+                    'data_pres'         => $v->data_presentazione,
+                    'data_atto'         => $v->data_validita_atto,
+                    'codice_diritto'    => $v->codice_diritto,
+                    'desc_diritto'      => IciVariazione::descrizioniDiritto()[$v->codice_diritto] ?? $v->codice_diritto,
+                    'quota_num'         => $v->quota_numeratore,
+                    'quota_den'         => $v->quota_denominatore,
+                    'tipologia'         => $v->tipologia_immobile,
+                    'foglio'            => $v->foglio,
+                    'numero'            => $v->numero,
+                    'subalterno'        => $v->subalterno,
+                    'categoria'         => $v->categoria,
+                    'rendita'           => (float)$v->rendita,
+                    'indirizzo'         => $v->indirizzo,
+                    'mesi_suggeriti'    => $v->mesiSuggeriti(),
+                ];
+            }
+        }
+
         return $this->asJson([
             'ok'          => true,
             'persona'     => [
@@ -380,7 +412,8 @@ class ImuController extends Controller
             'anno'        => $anno,
             'codComune'   => $codComune,
             'tassoLegale' => self::getTassoLegale($anno),
-            'pagamentiF24' => $pagamentiF24,
+            'pagamentiF24'  => $pagamentiF24,
+            'variazioniIci' => $variazioniIci,
         ]);
     }
 
@@ -1696,6 +1729,421 @@ HTML;
         $forn->save();
 
         return [$numTot, $numImu, $dataForn, $errori];
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Forniture ICI/IMU — variazioni catastali mensili portale ANCI
+    // ─────────────────────────────────────────────────────────────────────────
+
+    public function actionIciImport(): string
+    {
+        $this->layout = 'main';
+        $anno      = (int)Yii::$app->request->get('anno', date('Y'));
+        $forniture = IciFornitura::find()->orderBy('anno_mese DESC, importato_il DESC')->all();
+        return $this->render('ici-import', compact('anno', 'forniture'));
+    }
+
+    /** AJAX POST: importa un file ZIP o XML dal portale ANCI. */
+    public function actionIciUpload(): Response
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+
+        $file = \yii\web\UploadedFile::getInstanceByName('icifile');
+        if (!$file) {
+            return $this->asJson(['ok' => false, 'error' => 'Nessun file ricevuto.']);
+        }
+
+        $ext = strtolower($file->extension);
+        if (!in_array($ext, ['zip', 'xml'])) {
+            return $this->asJson(['ok' => false, 'error' => 'Formato non supportato. Usare .zip o .xml.']);
+        }
+
+        $tmpPath = $file->tempName;
+        $xmlContent = '';
+
+        if ($ext === 'zip') {
+            $zip = new \ZipArchive();
+            if ($zip->open($tmpPath) !== true) {
+                return $this->asJson(['ok' => false, 'error' => 'Impossibile aprire il file ZIP.']);
+            }
+            for ($i = 0; $i < $zip->numFiles; $i++) {
+                $name = $zip->getNameIndex($i);
+                if (preg_match('/\.(xml)$/i', $name)) {
+                    $xmlContent = $zip->getFromIndex($i);
+                    break;
+                }
+            }
+            $zip->close();
+            if (!$xmlContent) {
+                return $this->asJson(['ok' => false, 'error' => 'Nessun file XML trovato nello ZIP.']);
+            }
+        } else {
+            $xmlContent = file_get_contents($tmpPath);
+        }
+
+        $nomeFile = $file->name;
+        $result   = $this->importaIciXml($xmlContent, $nomeFile);
+
+        if (isset($result['error'])) {
+            return $this->asJson(['ok' => false, 'error' => $result['error']]);
+        }
+
+        return $this->asJson([
+            'ok'             => true,
+            'msg'            => "Importati {$result['num_soggetti']} soggetti ({$result['num_variazioni']} variazioni) da {$result['anno_mese']}.",
+            'anno_mese'      => $result['anno_mese'],
+            'num_variazioni' => $result['num_variazioni'],
+        ]);
+    }
+
+    /** AJAX POST: importa tutti i file ZIP storici da /home/giuseppe/DATI_ICI/. */
+    public function actionIciImportStorici(): Response
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $dir = '/home/giuseppe/DATI_ICI/';
+        if (!is_dir($dir)) {
+            return $this->asJson(['ok' => false, 'error' => 'Cartella storici non trovata: ' . $dir]);
+        }
+
+        $zips = glob($dir . 'ICI_*.zip');
+        if (!$zips) {
+            return $this->asJson(['ok' => false, 'error' => 'Nessun file ZIP trovato in ' . $dir]);
+        }
+
+        sort($zips);
+        $totVariazioni = 0;
+        $totSoggetti   = 0;
+        $elaborati     = 0;
+        $errori        = [];
+
+        foreach ($zips as $zipPath) {
+            $nomeFile = basename($zipPath);
+            // Salta se già importato
+            if (IciFornitura::find()->where(['nome_file' => $nomeFile])->exists()) {
+                continue;
+            }
+
+            $zip = new \ZipArchive();
+            if ($zip->open($zipPath) !== true) {
+                $errori[] = "$nomeFile: impossibile aprire lo ZIP";
+                continue;
+            }
+            $xmlContent = '';
+            for ($i = 0; $i < $zip->numFiles; $i++) {
+                $name = $zip->getNameIndex($i);
+                if (preg_match('/\.xml$/i', $name)) {
+                    $xmlContent = $zip->getFromIndex($i);
+                    break;
+                }
+            }
+            $zip->close();
+
+            if (!$xmlContent) {
+                $errori[] = "$nomeFile: nessun XML trovato";
+                continue;
+            }
+
+            $result = $this->importaIciXml($xmlContent, $nomeFile);
+            if (isset($result['error'])) {
+                $errori[] = "$nomeFile: " . $result['error'];
+                continue;
+            }
+
+            $totVariazioni += $result['num_variazioni'];
+            $totSoggetti   += $result['num_soggetti'];
+            $elaborati++;
+        }
+
+        return $this->asJson([
+            'ok'      => true,
+            'msg'     => "Elaborati $elaborati file ZIP. Variazioni: $totVariazioni, Soggetti: $totSoggetti.",
+            'errori'  => $errori,
+        ]);
+    }
+
+    /** AJAX POST: elimina una fornitura e tutte le sue variazioni. */
+    public function actionIciDelete(): Response
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $id   = (int)Yii::$app->request->post('id', 0);
+        $forn = IciFornitura::findOne($id);
+        if (!$forn) { return $this->asJson(['ok' => false, 'error' => 'Fornitura non trovata.']); }
+
+        Yii::$app->db->createCommand()
+            ->delete('ici_variazioni', ['fornitura_id' => $id])
+            ->execute();
+        $forn->delete();
+
+        return $this->asJson(['ok' => true]);
+    }
+
+    /** AJAX GET: ricerca variazioni per CF e/o anno. */
+    public function actionIciLista(): Response
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $cf   = strtoupper(trim(Yii::$app->request->get('cf',   '')));
+        $anno = (int)Yii::$app->request->get('anno', 0);
+
+        $q = IciVariazione::find()->orderBy('data_presentazione DESC, codice_fiscale');
+        if ($cf) {
+            $q->andWhere(['codice_fiscale' => $cf]);
+        }
+        if ($anno > 0 && !$cf) {
+            $q->andWhere(['YEAR(data_presentazione)' => $anno]);
+        } elseif ($anno > 0 && $cf) {
+            $q->andWhere(['YEAR(data_presentazione)' => $anno]);
+        }
+
+        $rows = [];
+        foreach ($q->limit(500)->all() as $v) {
+            $rows[] = [
+                'id'          => $v->id,
+                'anno_mese'   => $v->anno_mese,
+                'data_pres'   => $v->data_presentazione,
+                'tipo'        => $v->tipo_variazione,
+                'cf'          => $v->codice_fiscale,
+                'nominativo'  => trim($v->cognome . ' ' . $v->nome),
+                'tipologia'   => $v->tipologia_immobile,
+                'foglio'      => $v->foglio,
+                'numero'      => $v->numero,
+                'subalterno'  => $v->subalterno,
+                'categoria'   => $v->categoria,
+                'rendita'     => (float)$v->rendita,
+                'diritto'     => IciVariazione::descrizioniDiritto()[$v->codice_diritto] ?? $v->codice_diritto,
+                'quota'       => $v->quota_numeratore && $v->quota_denominatore
+                                 ? $v->quota_numeratore . '/' . $v->quota_denominatore : '—',
+                'mesi_sug'    => $v->mesiSuggeriti(),
+            ];
+        }
+
+        return $this->asJson(['ok' => true, 'rows' => $rows, 'count' => count($rows)]);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Metodi privati — parsing XML forniture ICI
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Parsa l'XML di una fornitura ICI e importa le variazioni nel DB.
+     * @return array ['anno_mese','num_variazioni','num_soggetti'] oppure ['error' => '...']
+     */
+    private function importaIciXml(string $xmlContent, string $nomeFile): array
+    {
+        // Rimuove la dichiarazione di namespace default per semplificare SimpleXML
+        $xmlContent = preg_replace('/\sxmlns(?::\w+)?="[^"]*"/', '', $xmlContent);
+        // Fix encoding dichiarato in ISO-8859-1 ma letto come UTF-8
+        if (str_contains($xmlContent, 'encoding="ISO-8859-1"')) {
+            $xmlContent = mb_convert_encoding($xmlContent, 'UTF-8', 'ISO-8859-1');
+            $xmlContent = str_replace('encoding="ISO-8859-1"', 'encoding="UTF-8"', $xmlContent);
+        }
+
+        $xml = @simplexml_load_string($xmlContent);
+        if (!$xml) {
+            return ['error' => 'XML non valido o non leggibile.'];
+        }
+
+        // Dati generali del periodo
+        $dg        = $xml->DatiPresenti->DatiGenerali ?? null;
+        $dataIniz  = $dg ? $this->parseDataIci((string)$dg->DataIniziale) : null;
+        $dataFine  = $dg ? $this->parseDataIci((string)$dg->DataFinale)   : null;
+        $annoMese  = $dataIniz ? substr($dataIniz, 0, 7) : date('Y-m');
+
+        // Controlla se già importato
+        if (IciFornitura::find()->where(['nome_file' => $nomeFile])->exists()) {
+            return ['error' => "File già importato: $nomeFile"];
+        }
+
+        $variazioni   = $xml->DatiPresenti->Variazioni->Variazione ?? [];
+        $numVariazioni = 0;
+        $numSoggetti   = 0;
+        $fornId        = 0;
+
+        // Crea prima la fornitura
+        $forn = new IciFornitura();
+        $forn->nome_file      = $nomeFile;
+        $forn->anno_mese      = $annoMese;
+        $forn->data_inizio    = $dataIniz;
+        $forn->data_fine      = $dataFine;
+        $forn->num_variazioni = 0;
+        $forn->num_soggetti   = 0;
+        if (!$forn->save()) {
+            return ['error' => 'Impossibile salvare la fornitura: ' . implode('; ', $forn->getFirstErrors())];
+        }
+        $fornId = $forn->id;
+
+        foreach ($variazioni as $var) {
+            $nota       = $var->Trascrizione->Nota ?? null;
+            if (!$nota) continue;
+
+            $numNota    = (int)(string)($nota->NumeroNota ?? 0);
+            $annoNota   = (int)(string)($nota->Anno ?? 0);
+            $esitoNota  = (int)(string)($nota->EsitoNota ?? 2);
+            $dataPres   = $this->parseDataIci((string)($nota->DataPresentazioneAtto ?? ''));
+            $dataVal    = $this->parseDataIci((string)($nota->DataValiditaAtto ?? ''));
+            $codiceAtto = (string)($nota->CodiceAtto ?? '');
+
+            // Salta note non registrate
+            if ($esitoNota == 2) continue;
+
+            // Mappa immobili per Ref_Immobile
+            $immMap = $this->buildImmobiliMap($var->Immobili ?? null);
+
+            foreach ($var->Soggetti->Soggetto ?? [] as $sogg) {
+                $cf = $cognome = $nome = '';
+                if ($sogg->PersonaFisica) {
+                    $pf      = $sogg->PersonaFisica;
+                    $cf      = strtoupper(trim((string)($pf->CodiceFiscale ?? '')));
+                    $cognome = trim((string)($pf->Cognome ?? ''));
+                    $nome    = trim((string)($pf->Nome ?? ''));
+                } elseif ($sogg->PersonaGiuridica) {
+                    $pg      = $sogg->PersonaGiuridica;
+                    $cf      = strtoupper(trim((string)($pg->CodiceFiscale ?? '')));
+                    $cognome = trim((string)($pg->Denominazione ?? ''));
+                }
+                if (!$cf) continue;
+
+                foreach ($sogg->DatiTitolarita->Titolarita ?? [] as $tit) {
+                    $refImm = (string)($tit->attributes()['Ref_Immobile'] ?? '');
+                    $imm    = $immMap[$refImm] ?? null;
+                    if (!$imm) continue;
+
+                    $tipoVar = null;
+                    $codDir  = $quotaN = $quotaD = null;
+
+                    if ($tit->Acquisizione) {
+                        $tipoVar = 'A';
+                        $acq     = $tit->Acquisizione;
+                        $codDir  = (string)($acq->CodiceDiritto    ?? '');
+                        $quotaN  = (string)($acq->QuotaNumeratore  ?? '');
+                        $quotaD  = (string)($acq->QuotaDenominatore ?? '');
+                    } elseif ($tit->Cessione) {
+                        $tipoVar = 'C';
+                        $ces     = $tit->Cessione;
+                        $codDir  = (string)($ces->CodiceDiritto    ?? '');
+                        $quotaN  = (string)($ces->QuotaNumeratore  ?? '');
+                        $quotaD  = (string)($ces->QuotaDenominatore ?? '');
+                    }
+                    if (!$tipoVar) continue;
+
+                    $v = new IciVariazione();
+                    $v->fornitura_id          = $fornId;
+                    $v->anno_mese             = $annoMese;
+                    $v->numero_nota           = $numNota ?: null;
+                    $v->anno_nota             = $annoNota ?: null;
+                    $v->data_presentazione    = $dataPres;
+                    $v->data_validita_atto    = $dataVal;
+                    $v->esito_nota            = $esitoNota;
+                    $v->codice_fiscale        = $cf;
+                    $v->cognome               = $cognome;
+                    $v->nome                  = $nome;
+                    $v->tipo_variazione       = $tipoVar;
+                    $v->codice_diritto        = $codDir;
+                    $v->quota_numeratore      = $quotaN !== '' ? (int)$quotaN : null;
+                    $v->quota_denominatore    = $quotaD !== '' ? (int)$quotaD : null;
+                    $v->tipologia_immobile    = $imm['tipologia'];
+                    $v->foglio                = $imm['foglio'];
+                    $v->numero                = $imm['numero'];
+                    $v->subalterno            = $imm['subalterno'] ?? '';
+                    $v->id_catastale_immobile = $imm['id_catastale'] ? (int)$imm['id_catastale'] : null;
+                    $v->categoria             = $imm['categoria'] ?? null;
+                    $v->classe                = $imm['classe'] ?? null;
+                    $v->superficie            = isset($imm['superficie']) ? (int)$imm['superficie'] : null;
+                    $v->rendita               = isset($imm['rendita_c']) ? round($imm['rendita_c'] / 100, 2) : null;
+                    $v->indirizzo             = $imm['indirizzo'] ?? null;
+                    $v->dominicale            = isset($imm['dominicale_c']) ? round($imm['dominicale_c'] / 100, 2) : null;
+                    $v->agrario               = isset($imm['agrario_c'])    ? round($imm['agrario_c']    / 100, 2) : null;
+
+                    try {
+                        if ($v->save()) {
+                            $numSoggetti++;
+                        }
+                    } catch (\yii\db\IntegrityException $e) {
+                        // Duplicato (stessa variazione già importata) — ignora
+                    }
+                }
+                $numVariazioni++;
+            }
+        }
+
+        // Aggiorna contatori
+        $forn->num_variazioni = $numVariazioni;
+        $forn->num_soggetti   = $numSoggetti;
+        $forn->save();
+
+        return [
+            'anno_mese'      => $annoMese,
+            'num_variazioni' => $numVariazioni,
+            'num_soggetti'   => $numSoggetti,
+        ];
+    }
+
+    /** Costruisce la mappa Ref_Immobile → dati catastali dall'elemento Immobili. */
+    private function buildImmobiliMap(?\SimpleXMLElement $immobili): array
+    {
+        if (!$immobili) return [];
+        $map = [];
+
+        foreach ($immobili->children() as $immEl) {
+            $ref      = (string)($immEl->attributes()['Ref_Immobile'] ?? '');
+            $tipologia = (string)($immEl->TipologiaImmobile ?? '');
+            $idCat    = (string)($immEl->IdCatastaleImmobile ?? '');
+
+            $data = ['tipologia' => $tipologia, 'id_catastale' => $idCat];
+
+            if ($tipologia === 'F') {
+                $idDef = $immEl->Identificativi->IdentificativoDefinitivo ?? $immEl->Identificativo ?? null;
+                $data['foglio']     = ltrim((string)($idDef->Foglio     ?? ''), '0') ?: '0';
+                $data['numero']     = ltrim((string)($idDef->Numero     ?? ''), '0') ?: '0';
+                $data['subalterno'] = ltrim((string)($idDef->Subalterno ?? ''), '0');
+                $cl = $immEl->Classamento ?? null;
+                if ($cl) {
+                    // Categoria: 'A02' → normalizza a 'A/2' per coerenza col catasto
+                    $catRaw = strtoupper(trim((string)($cl->Categoria ?? ($cl->Natura ?? ''))));
+                    $catNorm = preg_replace('/^([A-Z]+)0*(\d+)$/', '$1/$2', $catRaw);
+                    $data['categoria']   = $catNorm ?: $catRaw;
+                    $data['classe']      = (string)($cl->Classe     ?? '');
+                    $data['superficie']  = (int)(string)($cl->Superficie ?? 0);
+                    $rendC               = trim((string)($cl->RenditaEuro ?? ''));
+                    $data['rendita_c']   = $rendC !== '' ? (int)$rendC : null; // centesimi
+                }
+                $ub = $immEl->UbicazioneCatasto ?? null;
+                if ($ub) {
+                    $data['indirizzo'] = trim((string)($ub->Indirizzo ?? '') . ' ' . (string)($ub->Civico1 ?? ''));
+                }
+            } elseif ($tipologia === 'T') {
+                $idDef = $immEl->Identificativo ?? null;
+                $data['foglio']     = ltrim((string)($idDef->Foglio  ?? ''), '0') ?: '0';
+                $data['numero']     = ltrim((string)($idDef->Numero  ?? ''), '0') ?: '0';
+                $data['subalterno'] = '';
+                $cl = $immEl->Classamento ?? null;
+                if ($cl) {
+                    $domC = trim((string)($cl->DominicaleEuro ?? ''));
+                    $agrC = trim((string)($cl->AgrarioEuro   ?? ''));
+                    $data['dominicale_c'] = $domC !== '' ? (int)$domC : null;
+                    $data['agrario_c']    = $agrC !== '' ? (int)$agrC : null;
+                }
+            }
+
+            if ($ref) $map[$ref] = $data;
+        }
+        return $map;
+    }
+
+    /**
+     * Converte data dal formato ddmmyyyy (usato nelle forniture ICI) o yyyy-mm-dd in yyyy-mm-dd.
+     * Restituisce null se vuota o non valida.
+     */
+    private function parseDataIci(string $s): ?string
+    {
+        $s = trim($s);
+        if (!$s) return null;
+        // ISO: yyyy-mm-dd
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $s)) { return $s; }
+        // ddmmyyyy (formato usato nelle forniture ICI)
+        if (preg_match('/^(\d{2})(\d{2})(\d{4})$/', $s, $m)) {
+            return $m[3] . '-' . $m[2] . '-' . $m[1];
+        }
+        return null;
     }
 
     /** Restituisce true se la sigla di zona PRG è edificabile (B, C1-C12, CI, Ct, D, H, PEEP…). */

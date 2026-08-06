@@ -289,6 +289,12 @@ use yii\helpers\Html;
                         <p>Forniture F24</p>
                       </a>
                     </li>
+                    <li class="nav-item pl-1">
+                      <a href="<?= Url::to(['/imu/ici-import']) ?>" class="nav-link">
+                        <i class="nav-icon fas fa-exchange-alt text-warning"></i>
+                        <p>Variazioni Catastali</p>
+                      </a>
+                    </li>
                   </ul>
                 </li>
                 <li class="nav-item">

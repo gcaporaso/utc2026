@@ -345,7 +345,7 @@ $this->registerJs(<<<'JSINIT'
 'use strict';
 
 // ── Stato globale ──────────────────────────────────────────────────────────
-var state = { persona: {}, immobili: [], aliquote: {}, coefficienti: {}, valoriZone: {}, anno: new Date().getFullYear(), codComune: '', tassoLegale: 0, tardivo: null, pagamentiF24: [] };
+var state = { persona: {}, immobili: [], aliquote: {}, coefficienti: {}, valoriZone: {}, anno: new Date().getFullYear(), codComune: '', tassoLegale: 0, tardivo: null, pagamentiF24: [], variazioniIci: [] };
 
 // ── Elenco tipi utilizzo — FABBRICATI ────────────────────────────────────
 var TIPI_FAB = [
@@ -607,6 +607,43 @@ function buildTable() {
             '<td class="text-right td-alq">'   + (res.esente ? '<em>ESENTE</em>' : fmt(res.aliquota * 1000, 3) + '‰') + '</td>' +
             '<td class="text-right td-imu"><strong>' + (res.esente ? '0,00' : fmt(res.imuProporzionale)) + '</strong></td>';
         tbody.appendChild(tr);
+
+        // Variazioni ICI: cerca corrispondenza foglio+numero+subalterno
+        var fInt = parseInt(imm.foglio, 10);
+        var nInt = parseInt(imm.numero, 10);
+        var sStr = String(imm.subalterno || '').replace(/^0+/, '') || '';
+        var varImm = (state.variazioniIci || []).filter(function (v) {
+            return parseInt(v.foglio, 10) === fInt &&
+                   parseInt(v.numero, 10) === nInt &&
+                   (v.tipologia === 'T' || (String(v.subalterno || '').replace(/^0+/, '') || '') === sStr);
+        });
+        varImm.forEach(function (v) {
+            var isAcq  = v.tipo === 'A';
+            var bgCls  = isAcq ? 'table-info' : 'table-warning';
+            var icon   = isAcq ? 'fas fa-arrow-circle-right text-primary' : 'fas fa-arrow-circle-left text-warning';
+            var label  = isAcq ? 'ACQUISITO' : 'CEDUTO';
+            var dParts = (v.data_pres || '').split('-');
+            var dFmt   = dParts.length === 3 ? dParts[2] + '/' + dParts[1] + '/' + dParts[0] : (v.data_pres || '—');
+            var mSug   = v.mesi_suggeriti || 0;
+            var descDir = v.desc_diritto || v.codice_diritto || '';
+            var trV = document.createElement('tr');
+            trV.className = bgCls;
+            trV.innerHTML =
+                '<td colspan="14" class="py-1 px-3 small">' +
+                '<i class="' + icon + ' me-1"></i>' +
+                '<strong>' + label + '</strong> il <strong>' + dFmt + '</strong>' +
+                (descDir ? ' &mdash; ' + descDir : '') +
+                (v.quota_num && v.quota_den ? ' quota ' + v.quota_num + '/' + v.quota_den : '') +
+                ' &nbsp;|&nbsp; <span class="text-muted">Mesi suggeriti: </span>' +
+                '<strong class="' + (isAcq ? 'text-primary' : 'text-warning') + '">' + mSug + '</strong>' +
+                (mSug > 0 && mSug < 12
+                    ? ' <button class="btn btn-xs btn-outline-' + (isAcq ? 'primary' : 'warning') +
+                      ' py-0 px-1 ms-1 btn-applica-mesi" data-idx="' + idx + '" data-mesi="' + mSug + '"' +
+                      ' title="Applica ' + mSug + ' mesi di possesso" style="font-size:11px">Applica</button>'
+                    : '') +
+                '</td>';
+            tbody.appendChild(trV);
+        });
     });
     aggiornaTotali();
 }
@@ -891,7 +928,8 @@ document.getElementById('btn-cerca').addEventListener('click', function () {
             state.anno         = r.anno;
             state.codComune    = r.codComune || '';
             state.tassoLegale  = r.tassoLegale  || 0;
-            state.pagamentiF24 = r.pagamentiF24 || [];
+            state.pagamentiF24  = r.pagamentiF24  || [];
+            state.variazioniIci = r.variazioniIci || [];
             state.tardivo = null;
             // preset data pagamento = oggi
             var oggi = new Date().toISOString().split('T')[0];
@@ -937,6 +975,22 @@ document.getElementById('tbody-immobili').addEventListener('input', function (e)
     var idx = parseInt(tr ? tr.dataset.idx : el.getAttribute('data-idx'));
     if (isNaN(idx)) return;
     aggiornaRiga(tr, idx);
+});
+document.getElementById('tbody-immobili').addEventListener('click', function (e) {
+    var btn = e.target.closest('.btn-applica-mesi');
+    if (!btn) return;
+    var idx  = parseInt(btn.dataset.idx);
+    var mesi = parseInt(btn.dataset.mesi);
+    if (isNaN(idx) || isNaN(mesi)) return;
+    // Trova la TR dell'immobile (quella con data-idx)
+    var tr = document.querySelector('#tbody-immobili tr[data-idx="' + idx + '"]');
+    if (!tr) return;
+    var selMesi = tr.querySelector('.sel-mesi');
+    if (selMesi) {
+        selMesi.value = mesi;
+        state.immobili[idx]._mesi = mesi;
+        aggiornaRiga(tr, idx);
+    }
 });
 
 // ── Event: cambio periodo ─────────────────────────────────────────────────

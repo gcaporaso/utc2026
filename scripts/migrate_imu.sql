@@ -39,6 +39,55 @@ CREATE TABLE IF NOT EXISTS `imu_aree_edificabili` (
   KEY `idx_zona` (`zona`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+CREATE TABLE IF NOT EXISTS `ici_forniture` (
+  `id`             INT AUTO_INCREMENT PRIMARY KEY,
+  `nome_file`      VARCHAR(200) NOT NULL,
+  `anno_mese`      VARCHAR(7)   DEFAULT NULL COMMENT 'YYYY-MM',
+  `data_inizio`    DATE         DEFAULT NULL,
+  `data_fine`      DATE         DEFAULT NULL,
+  `num_variazioni` INT          DEFAULT '0',
+  `num_soggetti`   INT          DEFAULT '0',
+  `importato_il`   TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+  `note`           TEXT,
+  KEY `idx_anno_mese` (`anno_mese`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Log forniture mensili ICI/IMU dal portale ANCI';
+
+CREATE TABLE IF NOT EXISTS `ici_variazioni` (
+  `id`                    INT AUTO_INCREMENT PRIMARY KEY,
+  `fornitura_id`          INT           NOT NULL,
+  `anno_mese`             VARCHAR(7)    NOT NULL,
+  `numero_nota`           INT           DEFAULT NULL,
+  `anno_nota`             SMALLINT      DEFAULT NULL,
+  `data_presentazione`    DATE          DEFAULT NULL COMMENT 'DataPresentazioneAtto — data giuridicamente rilevante',
+  `data_validita_atto`    DATE          DEFAULT NULL COMMENT 'DataValiditaAtto — data stipula',
+  `esito_nota`            TINYINT       DEFAULT NULL COMMENT '0=registrata 1=parziale 2=non registrata',
+  `codice_fiscale`        VARCHAR(16)   NOT NULL,
+  `cognome`               VARCHAR(100)  DEFAULT NULL,
+  `nome`                  VARCHAR(100)  DEFAULT NULL,
+  `tipo_variazione`       CHAR(1)       NOT NULL COMMENT 'A=acquisizione C=cessione',
+  `codice_diritto`        VARCHAR(10)   DEFAULT NULL,
+  `quota_numeratore`      BIGINT        DEFAULT NULL,
+  `quota_denominatore`    BIGINT        DEFAULT NULL,
+  `tipologia_immobile`    CHAR(1)       DEFAULT NULL COMMENT 'F=fabbricato T=terreno',
+  `foglio`                VARCHAR(10)   DEFAULT NULL,
+  `numero`                VARCHAR(10)   DEFAULT NULL,
+  `subalterno`            VARCHAR(10)   DEFAULT NULL,
+  `id_catastale_immobile` BIGINT        DEFAULT NULL,
+  `categoria`             VARCHAR(10)   DEFAULT NULL,
+  `classe`                VARCHAR(5)    DEFAULT NULL,
+  `superficie`            INT           DEFAULT NULL,
+  `rendita`               DECIMAL(12,2) DEFAULT NULL COMMENT 'in euro (convertito da centesimi)',
+  `indirizzo`             VARCHAR(150)  DEFAULT NULL,
+  `dominicale`            DECIMAL(12,2) DEFAULT NULL,
+  `agrario`               DECIMAL(12,2) DEFAULT NULL,
+  UNIQUE KEY `uq_variazione` (`numero_nota`, `anno_nota`, `codice_fiscale`, `tipo_variazione`, `foglio`, `numero`, `subalterno`),
+  KEY `idx_cf`         (`codice_fiscale`),
+  KEY `idx_data`       (`data_presentazione`),
+  KEY `idx_foglio`     (`foglio`, `numero`, `subalterno`),
+  KEY `idx_anno_mese`  (`anno_mese`),
+  KEY `idx_fornitura`  (`fornitura_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Variazioni catastali mensili da forniture ICI/IMU portale ANCI';
+
 CREATE TABLE IF NOT EXISTS `imu_f24_pagamenti` (
   `id`                  INT AUTO_INCREMENT PRIMARY KEY,
   `anno_riferimento`    SMALLINT      NOT NULL,
