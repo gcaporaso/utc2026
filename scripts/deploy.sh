@@ -148,8 +148,10 @@ ssh "$PROD_HOST" "
     mysql --defaults-extra-file=\"\$OPTFILE\" -h \"\$DB_HOST\" -u \"\$DB_USER\" \"\$DB_NAME\" < scripts/migrate_imu.sql
     echo '      Tabelle IMU create/verificate (con aliquote/coefficienti/aree edificabili gia delib.)'
     mysql --defaults-extra-file=\"\$OPTFILE\" -h \"\$DB_HOST\" -u \"\$DB_USER\" \"\$DB_NAME\" < scripts/migrate_rbac.sql
-    rm -f \"\$OPTFILE\"
     echo '      Permessi RBAC aggiornati'
+    mysql --defaults-extra-file=\"\$OPTFILE\" -h \"\$DB_HOST\" -u \"\$DB_USER\" \"\$DB_NAME\" < scripts/migrate_profile.sql
+    rm -f \"\$OPTFILE\"
+    echo '      Tabella profile aggiornata'
 "
 echo "      OK"
 
