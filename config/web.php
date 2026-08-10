@@ -78,10 +78,10 @@ $config = [
             'mainLayout' => '@app/views/layouts/main.php',
             'viewPath' => '@app/views/admin',
             'controllerMap' => [
-                 'assignment' => [
+                'user' => 'app\controllers\AdminUserController',
+                'assignment' => [
                     'class' => 'mdm\admin\controllers\AssignmentController',
                     'userClassName' => 'mdm\admin\models\User',
-                    //'idField' => 'User_id'
                 ]
             ],
             'menus' => [
