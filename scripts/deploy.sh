@@ -146,8 +146,10 @@ ssh "$PROD_HOST" "
     mysql --defaults-extra-file=\"\$OPTFILE\" -h \"\$DB_HOST\" -u \"\$DB_USER\" \"\$DB_NAME\" < scripts/migrate_gis.sql
     echo '      Tabelle GIS create/verificate'
     mysql --defaults-extra-file=\"\$OPTFILE\" -h \"\$DB_HOST\" -u \"\$DB_USER\" \"\$DB_NAME\" < scripts/migrate_imu.sql
-    rm -f \"\$OPTFILE\"
     echo '      Tabelle IMU create/verificate (con aliquote/coefficienti/aree edificabili gia delib.)'
+    mysql --defaults-extra-file=\"\$OPTFILE\" -h \"\$DB_HOST\" -u \"\$DB_USER\" \"\$DB_NAME\" < scripts/migrate_rbac.sql
+    rm -f \"\$OPTFILE\"
+    echo '      Permessi RBAC aggiornati'
 "
 echo "      OK"
 
@@ -170,8 +172,12 @@ ssh "$PROD_HOST" "
     sudo chown -R giuseppe:www-data $PROD_DIR
     sudo find $PROD_DIR -type d -exec chmod 755 {} \;
     sudo find $PROD_DIR -type f -exec chmod 644 {} \;
+    sudo mkdir -p $PROD_DIR/web/uploads/avatars
+    sudo mkdir -p $PROD_DIR/web/mappe/b542/uploads
     sudo chmod -R 777 $PROD_DIR/runtime
     sudo chmod -R 777 $PROD_DIR/web/assets
+    sudo chmod -R 777 $PROD_DIR/web/uploads
+    sudo chmod -R 777 $PROD_DIR/web/mappe/b542/uploads
     sudo chmod -R 775 $PROD_DIR/web/tmp
     sudo chmod -R 775 $PROD_DIR/web/cdu
     sudo chmod -R 775 $PROD_DIR/web/commissioni

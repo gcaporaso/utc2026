@@ -1,24 +1,40 @@
 <?php
+use app\models\Profilo;
 use yii\helpers\Url;
 use yii\helpers\Html;
+
+$_sidebarUserId   = Yii::$app->user->isGuest ? null : Yii::$app->user->id;
+$_sidebarProfilo  = $_sidebarUserId ? Profilo::findOne(['user_id' => $_sidebarUserId]) : null;
+$_sidebarName     = $_sidebarProfilo ? $_sidebarProfilo->getDisplayName() : '';
+if (!$_sidebarName && !Yii::$app->user->isGuest) {
+    $_sidebarName = Yii::$app->user->identity->username;
+}
+$_avatarUrl = Url::to(['/profilo/avatar']);
 ?>
 <aside class="main-sidebar sidebar-dark-primary elevation-4">
-    <!-- Brand Logo -->
-<!--    <a href="index3.html" class="brand-link">
-        <img src="<?php //$assetDir?>/img/AdminLTELogo.png" alt="AdminLTE Logo" class="brand-image img-circle elevation-3" style="opacity: .8">
-        <span class="brand-text font-weight-light">AdminLTE 3</span>
-    </a>-->
 
     <!-- Sidebar -->
     <div class="sidebar">
-        <!-- Sidebar user panel (optional) -->
+        <!-- Sidebar user panel -->
         <div class="user-panel mt-2 pb-3 mb-3 d-flex align-items-center" style="background:transparent !important;border-bottom:1px solid #4f5962;">
             <div class="image">
-                <img src="<?= Yii::$app->request->baseUrl ?>/img/pino2.png" class="img-circle elevation-2" alt="User Image">
+                <a href="<?= Url::to(['/profilo/index']) ?>">
+                  <img src="<?= Html::encode($_avatarUrl) ?>" class="img-circle elevation-2"
+                       style="width:35px;height:35px;object-fit:cover;" alt="Avatar">
+                </a>
             </div>
-            <span style="padding-left:10px;color:#c2c7d0;font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;">
-                <?= isset(Yii::$app->user->identity->username) ? Html::encode(Yii::$app->user->identity->username) : 'Giuseppe Caporaso' ?>
-            </span>
+            <div style="padding-left:10px;overflow:hidden;">
+              <a href="<?= Url::to(['/profilo/index']) ?>"
+                 class="user-info-name"
+                 style="color:#c2c7d0;font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;display:block;text-decoration:none;">
+                <?= Html::encode($_sidebarName) ?>
+              </a>
+              <?php if ($_sidebarProfilo && $_sidebarProfilo->ruolo): ?>
+              <span style="color:#6c757d;font-size:10px;white-space:nowrap;overflow:hidden;display:block;">
+                <?= Html::encode($_sidebarProfilo->ruolo) ?>
+              </span>
+              <?php endif; ?>
+            </div>
         </div>
 
         <!-- SidebarSearch Form -->
@@ -315,61 +331,67 @@ use yii\helpers\Html;
                   </ul>
                 </li>
                 <li class="nav-item">
+                  <a href="<?= Url::to(['/profilo/index']) ?>" class="nav-link">
+                    <i class="nav-icon fas fa-user-circle text-warning"></i>
+                    <p>IL MIO PROFILO</p>
+                  </a>
+                </li>
+                <?php if (!Yii::$app->user->isGuest && Yii::$app->user->can('Gestione Utenti')): ?>
+                <li class="nav-item">
                   <a href="#" class="nav-link">
-                    <i class="nav-icon fas fa-users text-warning"></i>
+                    <i class="nav-icon fas fa-users-cog text-warning"></i>
                     <p>
                       CONFIGURAZIONE
                       <i class="right fas fa-angle-left"></i>
                     </p>
                   </a>
-                  <ul class="nav nav-treeview">
-                    <li class="nav-item  pl-1">
+                  <ul class="nav nav-treeview nav-child-indent">
+                    <li class="nav-item pl-1">
                       <a href="<?= Url::to(['/admin/user']) ?>" class="nav-link">
-                        <i class="nav-icon fas fa-user text-info"></i>
+                        <i class="nav-icon fas fa-users text-info"></i>
                         <p>Utenti</p>
                       </a>
                     </li>
-                  </ul>
-                    <ul class="nav nav-treeview">
-                    <li class="nav-item  pl-1">
-                      <a href="<?= Url::to(['/admin/role']) ?>" class="nav-link">
-                        <i class="nav-icon fas fa-user-times text-info"></i>
-                        <p>Ruoli</p>
-                      </a>
-                    </li>
-                  </ul>
-                    <ul class="nav nav-treeview">
-                    <li class="nav-item  pl-1">
-                      <a href="<?= Url::to(['/admin/permission']) ?>" class="nav-link">
-                        <i class="nav-icon fas fa-user-secret text-info"></i>
-                        <p>Permessi</p>
-                      </a>
-                    </li>
-                    </ul><!-- comment -->
-                    <ul class="nav nav-treeview">
-                    <li class="nav-item  pl-1">
+                    <li class="nav-item pl-1">
                       <a href="<?= Url::to(['/admin/assignment']) ?>" class="nav-link">
-                        <i class="nav-icon fas fa-user-plus text-info"></i>
+                        <i class="nav-icon fas fa-user-tag text-info"></i>
                         <p>Assegnazioni</p>
                       </a>
                     </li>
-                  </ul>
-                  <ul class="nav nav-treeview">
-                    <li class="nav-item  pl-1">
-                      <a href="<?= Url::to(['/admin/route']) ?>" class="nav-link">
-                        <i class="nav-icon fas fa-th text-info"></i>
-                        <p>Azioni</p>
+                    <li class="nav-item pl-1">
+                      <a href="<?= Url::to(['/admin/role']) ?>" class="nav-link">
+                        <i class="nav-icon fas fa-shield-alt text-info"></i>
+                        <p>Ruoli</p>
+                      </a>
+                    </li>
+                    <li class="nav-item pl-1">
+                      <a href="<?= Url::to(['/admin/permission']) ?>" class="nav-link">
+                        <i class="nav-icon fas fa-key text-info"></i>
+                        <p>Permessi</p>
                       </a>
                     </li>
                   </ul>
                 </li>
+                <?php endif; ?>
 
             
+                <?php if (!Yii::$app->user->isGuest): ?>
+                <li class="nav-item" style="margin-top:auto;">
+                  <?= Html::beginForm(['/admin/user/logout'], 'post', ['id' => 'sidebar-logout-form']) ?>
+                  <button type="submit" class="nav-link btn btn-link w-100 text-left"
+                          style="border:none;background:none;padding:.5rem 1rem;">
+                    <i class="nav-icon fas fa-sign-out-alt text-danger"></i>
+                    <p style="color:#c2c7d0;">ESCI</p>
+                  </button>
+                  <?= Html::endForm() ?>
+                </li>
+                <?php endif; ?>
+
     </ul>
-            
-            
-            
-            
+
+
+
+
             <?php
 //            echo \hail812\adminlte\widgets\Menu::widget([
 ////                'items' => [

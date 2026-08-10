@@ -38,3 +38,9 @@ mcp_server.log
 
 # PDF F24/IMU generati: contengono dati fiscali reali dei contribuenti
 /web/imu/*.pdf
+
+# File caricati dagli utenti (avatar, catasto DB): dati runtime, non codice
+/web/uploads/avatars/*
+!/web/uploads/avatars/.gitkeep
+/web/mappe/b542/uploads/*
+!/web/mappe/b542/uploads/.gitkeep

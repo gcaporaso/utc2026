@@ -61,6 +61,7 @@ class Paesistica extends ActiveRecord
             ['Latitudine','number','max'=>41.16,'min'=>41.08,'message' => 'Deve essere compresa tra 41.080000 e 41.160000'],
             ['Longitudine','number','max'=>14.7,'min'=>14.6,'message' => 'Deve essere compresa tra 14.600000 e 14.700000'],
             [['Indennita'],'number','min'=>0.00,'max'=>50000.00],
+            [['Indennita', 'IndPagata'], 'default', 'value' => 0],
            ];
     }
 

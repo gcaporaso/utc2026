@@ -74,9 +74,9 @@ $config = [
         ],
         'admin' => [
             'class' => 'mdm\admin\Module',
-            'layout' => null, //'left-menu', // defaults to null, using the application's layout without the menu
-                                     // other available values are 'right-menu' and 'top-menu'
+            'layout' => null,
             'mainLayout' => '@app/views/layouts/main.php',
+            'viewPath' => '@app/views/admin',
             'controllerMap' => [
                  'assignment' => [
                     'class' => 'mdm\admin\controllers\AssignmentController',
@@ -102,12 +102,14 @@ $config = [
         'as access' => [
             'class' => 'mdm\admin\components\AccessControl',
             'allowActions' => [
-                //'admin/*', // add or remove allowed actions to this list
-                // The actions listed here will be allowed to everyone including guests.
-                // So, 'admin/*' should not appear here in the production, of course.
-                // But in the earlier stages of your development, you may probably want to
-                // add a lot of actions here until you finally completed setting up rbac,
-                // otherwise you may not even take a first step.
+                'profilo/avatar',       // avatar accessibile senza login (img src nella sidebar)
+                'admin/user/login',
+                'admin/user/logout',
+                'admin/user/signup',    // registrazione aperta a tutti
+                'admin/user/request-password-reset',
+                'admin/user/reset-password',
+                'site/index',
+                'site/error',
             ]
         ],
         'request' => [
