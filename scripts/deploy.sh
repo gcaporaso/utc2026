@@ -21,10 +21,10 @@ BACKUP_DIR="/home/giuseppe/backups_pre_deploy"
 TIMESTAMP=$(date '+%Y%m%d_%H%M%S')
 
 # File di configurazione da NON sovrascrivere su prod
+# NB: config/web.php è tracciato in git e deve essere aggiornato dal deploy.
+#     Solo config/db.php contiene credenziali ambiente-specifiche.
 PROTECTED_FILES=(
     "config/db.php"
-    "config/params.php"
-    "config/web.php"
     "web/index.php"
 )
 
@@ -100,11 +100,9 @@ ssh "$PROD_HOST" "
     set -e
     cd $PROD_DIR
 
-    # Salva i file di configurazione locali
+    # Salva i file di configurazione locali (solo quelli ambiente-specifici)
     TMPDIR=\$(mktemp -d)
     cp config/db.php     \$TMPDIR/db.php     2>/dev/null || true
-    cp config/params.php \$TMPDIR/params.php 2>/dev/null || true
-    cp config/web.php    \$TMPDIR/web.php    2>/dev/null || true
     cp web/index.php     \$TMPDIR/index.php  2>/dev/null || true
 
     # Corregge permessi prima del reset (alcuni file potrebbero essere di www-data)
@@ -118,8 +116,6 @@ ssh "$PROD_HOST" "
 
     # Ripristina i file di configurazione locali
     cp \$TMPDIR/db.php     config/db.php     2>/dev/null || true
-    cp \$TMPDIR/params.php config/params.php 2>/dev/null || true
-    cp \$TMPDIR/web.php    config/web.php    2>/dev/null || true
     cp \$TMPDIR/index.php  web/index.php     2>/dev/null || true
     rm -rf \$TMPDIR
 
