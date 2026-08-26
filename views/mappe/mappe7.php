@@ -1,10 +1,12 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.6.0/dist/leaflet.css"
    integrity="sha512-xwE/Az9zrjBIphAcBb3F6JVqxf46+CDLwfLMHloNu6KEQCAWi6HcDUbeOfBIptF7tcCzusKFjFw2yuvEpDL9wQ=="
    crossorigin=""/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet-groupedlayercontrol/0.6.1/leaflet.groupedlayercontrol.min.css" crossorigin=""/>
  <!-- Make sure you put this AFTER Leaflet's CSS -->
  <script src="https://unpkg.com/leaflet@1.6.0/dist/leaflet.js"
    integrity="sha512-gZwIG9x3wUXg2hdXF6+rVkLF/0Vi9U8D2Ntg4Ga5I5BZpVkVxlJWbSQtXPSiUTtC0TjtGOmxa1AJPuV0CPthew=="
    crossorigin=""></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-groupedlayercontrol/0.6.1/leaflet.groupedlayercontrol.min.js" crossorigin=""></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.5.0/proj4.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4leaflet/1.0.2/proj4leaflet.js"></script>
 <script src="https://unpkg.com/geojson-vt@3.2.0/geojson-vt.js"></script>
@@ -31,7 +33,7 @@ $this->registerJsFile('mappe/b542/layerstyle.js');
 $this->registerJsFile('mappe/b542/prgjson.js');
 $this->registerJsFile('mappe/b542/ptpjson.js');
 $this->registerJsFile('mappe/b542/borghiagricoli.js');
-$this->registerJsFile('mappe/b542/vincoloidrog.js');
+// vincoloidrog.js sostituito da idrogeo_epsg7792.geojson caricato via fetch
 $this->registerJsFile('mappe/b542/pianofrane.js');
 $this->registerJsFile('mappe/b542/perimetro_comunale.js');
 $this->registerJsFile('mappe/b542/foglio01_Fabbricati.js');
@@ -532,8 +534,14 @@ var ptpLayer = L.geoJSON(ptpjson,{onEachFeature: onEachFeature});
 var borghiLayer = L.geoJSON(json_borghi_agricoli,{onEachFeature: onEachFeature});
 //ptpLayer.addData(json_borghi_agricoli);
 
-// Vincolo Idrogeologico 
-var vidroLayer = L.geoJSON(vidro);
+// Vincolo Idrogeologico (caricato da geojson)
+var vidroLayer = L.geoJSON(null, {
+    style: { color: '#1a6eb5', weight: 1.5, opacity: 0.9, fillColor: '#4da6ff', fillOpacity: 0.15 }
+});
+fetch('mappe/b542/idrogeo_epsg7792.geojson')
+    .then(function(r) { return r.json(); })
+    .then(function(data) { vidroLayer.addData(data); })
+    .catch(function(e) { console.warn('Vincolo idrogeologico non caricato:', e); });
 
 // CTR 
 //var ctrp = L.geoJSON(ctrpunti);
@@ -562,47 +570,53 @@ var layerCILA = L.layerGroup(); //.addTo(map);
 var layerAltro = L.layerGroup(); //.addTo(map);
 var pratiche = L.layerGroup([layerPermessi,layerSCIA,layerSCA,layerAltro]).addTo(map);
 
-var overlayers = {
-    'Catastale Raster': catasto,
-    'Catastale Foglio 1 Edifici':catastale_f1_edifici,
-    'Catastale Foglio 1 Particelle':catastale_f1_particelle,
-    'Catastale Foglio 2 Edifici':catastale_f2_edifici,
-    'Catastale Foglio 2 Particelle':catastale_f2_particelle,
-    'Catastale Foglio 3 Edifici':catastale_f3_edifici,
-    'Catastale Foglio 3 Particelle':catastale_f3_particelle,
-    'Catastale Foglio 4 Edifici':catastale_f4_edifici,
-    'Catastale Foglio 4 Particelle':catastale_f4_particelle,
-    'Catastale Foglio 5 Edifici':catastale_f5_edifici,
-    'Catastale Foglio 5 Particelle':catastale_f5_particelle,
-    'Catastale Foglio 6 Edifici':catastale_f6_edifici,
-    'Catastale Foglio 6 Particelle':catastale_f6_particelle,
-    'Catastale Foglio 7 Edifici':catastale_f7_edifici,
-    'Catastale Foglio 7 Particelle':catastale_f7_particelle,
-    'Catastale Foglio 8 Edifici':catastale_f8_edifici,
-    'Catastale Foglio 8 Particelle':catastale_f8_particelle,
-    'Catastale Foglio 9 Edifici':catastale_f9_edifici,
-    'Catastale Foglio 9 Particelle':catastale_f9_particelle,
-    'Catastale Foglio 10 Edifici':catastale_f10_edifici,
-    'Catastale Foglio 10 Particelle':catastale_f10_particelle,
-    'Catastale Foglio 11 Edifici':catastale_f11_edifici,
-    'Catastale Foglio 11 Particelle':catastale_f11_particelle,
-    'Catastale Foglio 12 Edifici':catastale_f12_edifici,
-    'Catastale Foglio 12 Particelle':catastale_f12_particelle,
-    'PRG':prgLayer,
-    'CTR: Curve Livello':ctr_curve,
-    'CTR: Edifici':ctr_edifici,
-    'Piano Paesistico':ptpLayer,
-    'Borghi':borghiLayer,
-    'Vinc. Idrogeologico':vidroLayer,
-    'Rischio Frane':pabLayer,
-    'Perimetro':PerimetroLayer,
-    'Pretiche Edilizie':pratiche,
-    //'Permessi Costruire':layerPermessi,
-    //'SCIA':layerSCIA,
-    //'CILA':layerCILA,
-    //'Agibilità (SCA)':layerSCA,
-    //'Altre Pratiche':layerAltro,
-    //'Catastale Vector':vcatLayer
+var groupedOverlays = {
+    'Catastale': {
+        'Catastale Raster': catasto,
+        'Foglio 1 Edifici': catastale_f1_edifici,
+        'Foglio 1 Particelle': catastale_f1_particelle,
+        'Foglio 2 Edifici': catastale_f2_edifici,
+        'Foglio 2 Particelle': catastale_f2_particelle,
+        'Foglio 3 Edifici': catastale_f3_edifici,
+        'Foglio 3 Particelle': catastale_f3_particelle,
+        'Foglio 4 Edifici': catastale_f4_edifici,
+        'Foglio 4 Particelle': catastale_f4_particelle,
+        'Foglio 5 Edifici': catastale_f5_edifici,
+        'Foglio 5 Particelle': catastale_f5_particelle,
+        'Foglio 6 Edifici': catastale_f6_edifici,
+        'Foglio 6 Particelle': catastale_f6_particelle,
+        'Foglio 7 Edifici': catastale_f7_edifici,
+        'Foglio 7 Particelle': catastale_f7_particelle,
+        'Foglio 8 Edifici': catastale_f8_edifici,
+        'Foglio 8 Particelle': catastale_f8_particelle,
+        'Foglio 9 Edifici': catastale_f9_edifici,
+        'Foglio 9 Particelle': catastale_f9_particelle,
+        'Foglio 10 Edifici': catastale_f10_edifici,
+        'Foglio 10 Particelle': catastale_f10_particelle,
+        'Foglio 11 Edifici': catastale_f11_edifici,
+        'Foglio 11 Particelle': catastale_f11_particelle,
+        'Foglio 12 Edifici': catastale_f12_edifici,
+        'Foglio 12 Particelle': catastale_f12_particelle,
+    },
+    'CTR': {
+        'CTR: Curve Livello': ctr_curve,
+        'CTR: Edifici': ctr_edifici,
+    },
+    'Urbanistica': {
+        'PRG': prgLayer,
+        'Borghi': borghiLayer,
+    },
+    'Vincoli': {
+        'Piano Paesistico (PTP)': ptpLayer,
+        'Vincolo Idrogeologico': vidroLayer,
+        'Rischio Frane': pabLayer,
+    },
+    'Pratiche': {
+        'Pratiche Edilizie': pratiche,
+    },
+    'Altro': {
+        'Perimetro': PerimetroLayer,
+    },
 };
 
 var opacitylayers = {
@@ -610,13 +624,11 @@ var opacitylayers = {
 //'Vector Catastale':shpfile,
 };
 
-//LayerControl
-L.control.layers(
+//LayerControl con sezioni raggruppate
+L.control.groupedLayers(
     baselayers,
-    overlayers,
-//    {
-//    collapsed: false
-//    }
+    groupedOverlays,
+    { collapsed: true, groupCheckboxes: false }
 ).addTo(map);
 
 //OpacityControl
