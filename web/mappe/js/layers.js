@@ -84,7 +84,7 @@ borghiLayer = L.geoJSON(json_borghi_agricoli);
 vidroLayer = L.geoJSON(null, {
     style: { color: '#1a6eb5', weight: 1.5, opacity: 0.9, fillColor: '#4da6ff', fillOpacity: 0.15 }
 });
-fetch('mappe/b542/idrogeo_epsg7792.geojson')
+fetch('mappe/b542/idrogeo_wgs84.geojson')
     .then(function(r) { return r.json(); })
     .then(function(data) { vidroLayer.addData(data); })
     .catch(function(e) { console.warn('Vincolo idrogeologico non caricato:', e); });
