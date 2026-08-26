@@ -51,7 +51,7 @@ var CARTELLA_CATASTALE = <?= json_encode($cartellaMappe) ?>;
 $this->registerJsFile('mappe/b542/prgjson.js');
 $this->registerJsFile('mappe/b542/ptpjson.js');
 $this->registerJsFile('mappe/b542/borghiagricoli.js');
-$this->registerJsFile('mappe/b542/vincoloidrog.js');
+// vincoloidrog.js sostituito da idrogeo_epsg7792.geojson caricato via fetch in layers.js
 $this->registerJsFile('mappe/b542/pianofrane.js');
 $this->registerJsFile('mappe/b542/perimetro_comunale.js');
 // $this->registerJsFile('mappe/b542/foglio01_Fabbricati.js');

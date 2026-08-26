@@ -80,8 +80,14 @@ ptpLayer = L.geoJSON(ptpjson,{style:style_ptp, onEachFeature: onEachFeaturePTP})
 borghiLayer = L.geoJSON(json_borghi_agricoli);
 //ptpLayer.addData(json_borghi_agricoli);
 
-// Vincolo Idrogeologico
-vidroLayer = L.geoJSON(vidro);
+// Vincolo Idrogeologico (caricato da geojson)
+vidroLayer = L.geoJSON(null, {
+    style: { color: '#1a6eb5', weight: 1.5, opacity: 0.9, fillColor: '#4da6ff', fillOpacity: 0.15 }
+});
+fetch('mappe/b542/idrogeo_epsg7792.geojson')
+    .then(function(r) { return r.json(); })
+    .then(function(data) { vidroLayer.addData(data); })
+    .catch(function(e) { console.warn('Vincolo idrogeologico non caricato:', e); });
 
 // CTR
 //var ctrp = L.geoJSON(ctrpunti);
@@ -195,9 +201,14 @@ overlaysTree = {
                         // { label: 'Zonizzazione', layer: layer_PIANOREGOLATOREGENERALE_0}, 
                         { label: 'Borghi Agricoli', layer: borghiLayer }
                 ],
-        }, {          
-        label: 'PTP', layer: ptpLayer,
-        }, {      
+        }, {
+        label: 'Vincoli',
+        collapsed: true,
+            children: [
+                        { label: 'Piano Paesistico (PTP)', layer: ptpLayer },
+                        { label: 'Vincolo Idrogeologico',  layer: vidroLayer },
+            ],
+        }, {
         label: 'Pratiche Edilizie',
         collapsed:true,
             children: [
