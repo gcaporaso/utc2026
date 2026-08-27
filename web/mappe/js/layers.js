@@ -85,6 +85,11 @@ vidroLayer = L.geoJSON(idrogeo_wgs84, {
     style: { color: '#1a6eb5', weight: 1.5, opacity: 0.9, fillColor: '#4da6ff', fillOpacity: 0.15 }
 });
 
+// CTR-PRG
+ctrprgLayer = L.geoJSON(ctrprg_4326, {
+    style: { color: '#8B0000', weight: 1.5, opacity: 0.9, fillColor: '#cc0000', fillOpacity: 0.12 }
+});
+
 // CTR
 //var ctrp = L.geoJSON(ctrpunti);
 //var ctrc = L.geoJSON(curve);
@@ -203,6 +208,7 @@ overlaysTree = {
             children: [
                         { label: 'Piano Paesistico (PTP)', layer: ptpLayer },
                         { label: 'Vincolo Idrogeologico',  layer: vidroLayer },
+                        { label: 'CTR-PRG',               layer: ctrprgLayer },
             ],
         }, {
         label: 'Pratiche Edilizie',
